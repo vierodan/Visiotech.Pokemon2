@@ -15,17 +15,25 @@ public sealed class DatabaseInitializer(
         await using var scope = serviceScopeFactory.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PokemonDbContext>();
 
+        logger.LogInformation(
+            "Initializing persistence with provider {Provider}. ApplyMvpRoster: {ApplyMvpRoster}",
+            dbContext.Database.ProviderName,
+            seedOptions.Value.ApplyMvpRoster);
+
         if (string.Equals(dbContext.Database.ProviderName, "Microsoft.EntityFrameworkCore.Sqlite", StringComparison.Ordinal))
         {
+            logger.LogInformation("Ensuring SQLite database is created.");
             await dbContext.Database.EnsureCreatedAsync(cancellationToken);
         }
         else
         {
+            logger.LogInformation("Applying pending Entity Framework migrations.");
             await dbContext.Database.MigrateAsync(cancellationToken);
         }
 
         if (!seedOptions.Value.ApplyMvpRoster)
         {
+            logger.LogInformation("Skipping seed because MVP roster initialization is disabled.");
             return;
         }
 
@@ -35,9 +43,14 @@ public sealed class DatabaseInitializer(
             await dbContext.SaveChangesAsync(cancellationToken);
             logger.LogInformation("Seeded MVP pokemon species roster with {Count} records.", 10);
         }
+        else
+        {
+            logger.LogInformation("Skipping species seed because the catalog already contains records.");
+        }
 
         if (await dbContext.PokemonMoves.AnyAsync(cancellationToken))
         {
+            logger.LogInformation("Skipping move seed because the move catalog already contains records.");
             return;
         }
 

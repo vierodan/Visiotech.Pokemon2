@@ -23,6 +23,11 @@ Antes de usar cualquiera de los prompts de este fichero, la IA debe asumir este 
 - deben aplicarse obligatoriamente las mejores prácticas de software en código, validaciones, manejo de errores, pruebas, mantenibilidad, legibilidad, cohesión, bajo acoplamiento y evolución futura del sistema
 - la persistencia en infraestructura debe implementarse con `Entity Framework Core`, usando migraciones como mecanismo oficial de evolución del esquema
 - la base de datos objetivo es `PostgreSQL`, por lo que el modelado, mapeo, tipos de datos, constraints e índices deben pensarse para ese motor
+- debe incorporarse observabilidad al aplicativo como capacidad obligatoria y transversal
+- el logging debe implementarse obligatoriamente con `Serilog`
+- las trazas deben emitirse tanto a consola como a `Seq`
+- el logging debe ser estructurado, con eventos útiles para diagnóstico, soporte operativo y trazabilidad funcional
+- el logging no debe incluir datos sensibles, secretos, credenciales ni información innecesaria que degrade la postura de seguridad
 - si existe conflicto entre ejemplos concretos y la tabla de efectividad de la sección `6.1`, prevalece la tabla
 - el modelo debe soportar Pokémon base con `1..2` tipos
 - el movimiento debe tener `tipo`, `categoría` (`Physical` o `Special`) y `poder`
