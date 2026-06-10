@@ -88,7 +88,7 @@ public sealed class PokemonSpeciesDeletionDependencyChecker(PokemonDbContext dbC
         }
 
         var storeSchema = foreignKey.DeclaringEntityType.GetSchema();
-        schema = UsesSchemas() ? storeSchema : null;
+        schema = storeSchema;
 
         var storeObjectIdentifier = StoreObjectIdentifier.Table(tableName, storeSchema);
         columnName = foreignKey.Properties[0].GetColumnName(storeObjectIdentifier) ?? string.Empty;
@@ -116,9 +116,6 @@ public sealed class PokemonSpeciesDeletionDependencyChecker(PokemonDbContext dbC
         var result = await command.ExecuteScalarAsync(cancellationToken);
         return result is not null && result is not DBNull;
     }
-
-    private bool UsesSchemas() =>
-        !string.Equals(dbContext.Database.ProviderName, "Microsoft.EntityFrameworkCore.Sqlite", StringComparison.OrdinalIgnoreCase);
 
     private static string QualifyTableName(string tableName, string? schema) =>
         string.IsNullOrWhiteSpace(schema)

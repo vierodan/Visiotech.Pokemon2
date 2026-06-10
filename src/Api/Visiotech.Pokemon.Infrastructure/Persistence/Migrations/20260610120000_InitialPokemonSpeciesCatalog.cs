@@ -1,9 +1,12 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace Visiotech.Pokemon.Infrastructure.Persistence.Migrations;
 
+[DbContext(typeof(PokemonDbContext))]
+[Migration("20260610120000_InitialPokemonSpeciesCatalog")]
 public partial class InitialPokemonSpeciesCatalog : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)

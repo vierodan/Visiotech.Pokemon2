@@ -29,13 +29,6 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Connection string 'Pokemon2Db' is required.");
             }
 
-            var provider = configuration["Persistence:Provider"];
-            if (string.Equals(provider, "Sqlite", StringComparison.OrdinalIgnoreCase))
-            {
-                options.UseSqlite(connectionString);
-                return;
-            }
-
             options.UseNpgsql(
                 connectionString,
                 npgsqlOptions => npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "pokemon2"));

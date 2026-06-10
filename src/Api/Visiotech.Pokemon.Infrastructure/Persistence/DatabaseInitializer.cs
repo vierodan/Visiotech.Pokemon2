@@ -20,16 +20,8 @@ public sealed class DatabaseInitializer(
             dbContext.Database.ProviderName,
             seedOptions.Value.ApplyMvpRoster);
 
-        if (string.Equals(dbContext.Database.ProviderName, "Microsoft.EntityFrameworkCore.Sqlite", StringComparison.Ordinal))
-        {
-            logger.LogInformation("Ensuring SQLite database is created.");
-            await dbContext.Database.EnsureCreatedAsync(cancellationToken);
-        }
-        else
-        {
-            logger.LogInformation("Applying pending Entity Framework migrations.");
-            await dbContext.Database.MigrateAsync(cancellationToken);
-        }
+        logger.LogInformation("Applying pending Entity Framework migrations.");
+        await dbContext.Database.MigrateAsync(cancellationToken);
 
         if (!seedOptions.Value.ApplyMvpRoster)
         {

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Visiotech.Pokemon.Infrastructure.Persistence;
 
 #nullable disable
@@ -13,7 +14,12 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
         modelBuilder
-            .HasDefaultSchema("pokemon2");
+            .HasAnnotation("ProductVersion", "10.0.0")
+            .HasAnnotation("Relational:MaxIdentifierLength", 63);
+
+        NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+        modelBuilder.HasDefaultSchema("pokemon2");
 
         modelBuilder.Entity("Visiotech.Pokemon.Domain.Pokemons.PokemonMove", b =>
         {
