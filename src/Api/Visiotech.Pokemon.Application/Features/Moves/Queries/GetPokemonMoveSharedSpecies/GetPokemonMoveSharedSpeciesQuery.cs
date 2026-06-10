@@ -1,0 +1,6 @@
+using Visiotech.Pokemon.Application.Abstractions.Messaging;
+using Visiotech.Pokemon.Application.Common.Models;
+
+namespace Visiotech.Pokemon.Application.Features.Moves.Queries.GetPokemonMoveSharedSpecies;
+
+public sealed record GetPokemonMoveSharedSpeciesQuery(Guid Id) : IQuery<PokemonMoveSharedSpeciesResponse>;

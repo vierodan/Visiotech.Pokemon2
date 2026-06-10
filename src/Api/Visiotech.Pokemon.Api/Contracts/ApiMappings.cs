@@ -36,6 +36,12 @@ public static class ApiMappings
             response.PokemonSpeciesName,
             response.Moves.Select(item => item.ToContract()).ToArray());
 
+    public static PokemonMoveSharedSpeciesContract ToContract(this PokemonMoveSharedSpeciesResponse response) =>
+        new(
+            response.PokemonMoveId,
+            response.PokemonMoveName,
+            response.PokemonSpecies.Select(item => item.ToContract()).ToArray());
+
     public static PokemonMoveCatalogContract ToContract(this PokemonMoveCatalogResponse response) =>
         new(
             response.Items.Select(item => item.ToContract()).ToArray(),

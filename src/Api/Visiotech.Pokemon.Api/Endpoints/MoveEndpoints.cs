@@ -10,6 +10,7 @@ using Visiotech.Pokemon.Application.Features.Moves.Commands.DeletePokemonMove;
 using Visiotech.Pokemon.Application.Features.Moves.Commands.UpdatePokemonMove;
 using Visiotech.Pokemon.Application.Features.Moves.Queries.GetPokemonMoveDetail;
 using Visiotech.Pokemon.Application.Features.Moves.Queries.GetPokemonMovesCatalog;
+using Visiotech.Pokemon.Application.Features.Moves.Queries.GetPokemonMoveSharedSpecies;
 using Visiotech.Pokemon.Contracts;
 
 namespace Visiotech.Pokemon.Api;
@@ -50,6 +51,12 @@ public static class MoveEndpoints
             .WithName("GetPokemonMoveDetail")
             .WithSummary("Returns the detail of a move.")
             .Produces<PokemonMoveContract>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        endpoints.MapGet("/api/v1/moves/{id:guid}/pokemon-species", GetPokemonMoveSharedSpeciesAsync)
+            .WithName("GetPokemonMoveSharedSpecies")
+            .WithSummary("Returns the base pokemon species that can learn a given move.")
+            .Produces<PokemonMoveSharedSpeciesContract>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         return endpoints;
@@ -120,6 +127,15 @@ public static class MoveEndpoints
         CancellationToken cancellationToken)
     {
         var response = await handler.Handle(new GetPokemonMoveDetailQuery(id), cancellationToken);
+        return TypedResults.Ok(response.ToContract());
+    }
+
+    private static async Task<Ok<PokemonMoveSharedSpeciesContract>> GetPokemonMoveSharedSpeciesAsync(
+        Guid id,
+        IQueryHandler<GetPokemonMoveSharedSpeciesQuery, PokemonMoveSharedSpeciesResponse> handler,
+        CancellationToken cancellationToken)
+    {
+        var response = await handler.Handle(new GetPokemonMoveSharedSpeciesQuery(id), cancellationToken);
         return TypedResults.Ok(response.ToContract());
     }
 }

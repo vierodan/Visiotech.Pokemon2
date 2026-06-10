@@ -482,6 +482,68 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
     }
 
     [Fact]
+    public async Task GetPokemonMoveSharedSpecies_Should_Return_Species_Sharing_Protect()
+    {
+        var charizard = await CreateSpeciesAsync("Charizard", ["Fire", "Flying"], 78, 84, 78, 109, 85, 100);
+        var blastoise = await CreateSpeciesAsync("Blastoise", ["Water"], 79, 83, 100, 85, 105, 78);
+        var venusaur = await CreateSpeciesAsync("Venusaur", ["Grass", "Poison"], 80, 82, 83, 100, 100, 80);
+        var protect = await CreateMoveAsync("Protect", "Normal", "Status", 0);
+
+        foreach (var speciesId in new[] { charizard.Id, blastoise.Id, venusaur.Id })
+        {
+            var associationResponse = await _client.PutAsJsonAsync(
+                $"/api/v1/pokemons/{speciesId}/learnable-moves",
+                new UpdatePokemonLearnableMovesRequestContract([protect.Id], []));
+
+            Assert.Equal(HttpStatusCode.OK, associationResponse.StatusCode);
+        }
+
+        var response = await _client.GetAsync($"/api/v1/moves/{protect.Id}/pokemon-species");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<PokemonMoveSharedSpeciesContract>();
+        Assert.NotNull(payload);
+        Assert.Equal(protect.Id, payload.PokemonMoveId);
+        Assert.Equal("Protect", payload.PokemonMoveName);
+        Assert.Equal(3, payload.PokemonSpecies.Count);
+        Assert.Collection(
+            payload.PokemonSpecies,
+            species => Assert.Equal("Blastoise", species.Name),
+            species => Assert.Equal("Charizard", species.Name),
+            species => Assert.Equal("Venusaur", species.Name));
+    }
+
+    [Fact]
+    public async Task GetPokemonMoveSharedSpecies_Should_Return_NotFound_When_Move_Does_Not_Exist()
+    {
+        var response = await _client.GetAsync($"/api/v1/moves/{Guid.NewGuid()}/pokemon-species");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        await using var responseStream = await response.Content.ReadAsStreamAsync();
+        using var payload = await JsonDocument.ParseAsync(responseStream);
+        Assert.Equal("Not found", payload.RootElement.GetProperty("title").GetString());
+        Assert.Equal("id", payload.RootElement.GetProperty("target").GetString());
+    }
+
+    [Fact]
+    public async Task GetPokemonMoveSharedSpecies_Should_Return_Empty_List_When_Move_Has_No_Associations()
+    {
+        var protect = await CreateMoveAsync("Protect", "Normal", "Status", 0);
+
+        var response = await _client.GetAsync($"/api/v1/moves/{protect.Id}/pokemon-species");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<PokemonMoveSharedSpeciesContract>();
+        Assert.NotNull(payload);
+        Assert.Equal(protect.Id, payload.PokemonMoveId);
+        Assert.Equal("Protect", payload.PokemonMoveName);
+        Assert.Empty(payload.PokemonSpecies);
+    }
+
+    [Fact]
     public async Task GetPokemonsCatalog_Should_List_And_Get_Detail_After_Creating_Mvp_Roster()
     {
         foreach (var pokemonSpecies in PokemonMvpRosterSeed.GetSpecies())
