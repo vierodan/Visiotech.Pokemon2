@@ -92,6 +92,78 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
     }
 
     [Fact]
+    public async Task GetPokemonMovesCatalog_Should_List_And_Get_Detail_After_Creating_Curated_Subset()
+    {
+        foreach (var pokemonMove in PokemonMvpMoveSeed.GetMoves())
+        {
+            var createResponse = await _client.PostAsJsonAsync(
+                "/api/v1/moves",
+                new CreatePokemonMoveRequestContract(
+                    pokemonMove.Name.Value,
+                    pokemonMove.Type.ToString(),
+                    pokemonMove.Category.ToString(),
+                    pokemonMove.Power));
+
+            Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        }
+
+        var listResponse = await _client.GetAsync("/api/v1/moves?page=1&pageSize=50");
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+
+        var listPayload = await listResponse.Content.ReadFromJsonAsync<PokemonMoveCatalogContract>();
+        Assert.NotNull(listPayload);
+        Assert.Equal(27, listPayload.TotalCount);
+        Assert.Contains(listPayload.Items, item => item.Name == "Protect" && item.Category == "Status");
+
+        var protect = Assert.Single(listPayload.Items, item => item.Name == "Protect");
+        var detailResponse = await _client.GetAsync($"/api/v1/moves/{protect.Id}");
+
+        Assert.Equal(HttpStatusCode.OK, detailResponse.StatusCode);
+
+        var detailPayload = await detailResponse.Content.ReadFromJsonAsync<PokemonMoveContract>();
+        Assert.NotNull(detailPayload);
+        Assert.Equal(protect.Id, detailPayload.Id);
+        Assert.Equal("Normal", detailPayload.Type);
+        Assert.Equal("Status", detailPayload.Category);
+        Assert.Equal(0, detailPayload.Power);
+    }
+
+    [Fact]
+    public async Task GetPokemonMovesCatalog_Should_Filter_And_Paginate()
+    {
+        await CreateMoveAsync("Thunderbolt", "Electric", "Special", 90);
+        await CreateMoveAsync("Thunder Punch", "Electric", "Physical", 75);
+        await CreateMoveAsync("Surf", "Water", "Special", 90);
+
+        var response = await _client.GetAsync("/api/v1/moves?type=Electric&category=Special&name=thunder&page=1&pageSize=1");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<PokemonMoveCatalogContract>();
+        Assert.NotNull(payload);
+        Assert.Equal(1, payload.TotalCount);
+        Assert.Equal(1, payload.TotalPages);
+        Assert.Equal(1, payload.Page);
+        var item = Assert.Single(payload.Items);
+        Assert.Equal("Thunderbolt", item.Name);
+        Assert.Equal("Electric", item.Type);
+        Assert.Equal("Special", item.Category);
+    }
+
+    [Fact]
+    public async Task GetPokemonMoveDetail_Should_Return_NotFound_When_Move_Does_Not_Exist()
+    {
+        var response = await _client.GetAsync($"/api/v1/moves/{Guid.NewGuid()}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        await using var responseStream = await response.Content.ReadAsStreamAsync();
+        using var payload = await JsonDocument.ParseAsync(responseStream);
+        Assert.Equal("Not found", payload.RootElement.GetProperty("title").GetString());
+        Assert.Equal("id", payload.RootElement.GetProperty("target").GetString());
+    }
+
+    [Fact]
     public async Task GetPokemonsCatalog_Should_List_And_Get_Detail_After_Creating_Mvp_Roster()
     {
         foreach (var pokemonSpecies in PokemonMvpRosterSeed.GetSpecies())
@@ -458,6 +530,22 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var payload = await response.Content.ReadFromJsonAsync<PokemonSpeciesContract>();
+        Assert.NotNull(payload);
+        return payload;
+    }
+
+    private async Task<PokemonMoveContract> CreateMoveAsync(
+        string name,
+        string type,
+        string category,
+        int power)
+    {
+        var response = await _client.PostAsJsonAsync(
+            "/api/v1/moves",
+            new CreatePokemonMoveRequestContract(name, type, category, power));
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<PokemonMoveContract>();
         Assert.NotNull(payload);
         return payload;
     }

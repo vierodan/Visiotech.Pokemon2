@@ -40,6 +40,7 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IPokemonSpeciesReadRepository, PokemonSpeciesRepository>();
+        services.AddScoped<IPokemonMoveReadRepository, PokemonMoveRepository>();
         services.AddScoped<IPokemonMoveWriteRepository, PokemonMoveRepository>();
         services.AddScoped<IPokemonSpeciesWriteRepository, PokemonSpeciesRepository>();
         services.AddScoped<IPokemonSpeciesDeletionDependencyChecker, PokemonSpeciesDeletionDependencyChecker>();
