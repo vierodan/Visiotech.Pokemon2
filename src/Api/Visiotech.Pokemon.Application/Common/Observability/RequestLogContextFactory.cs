@@ -1,4 +1,5 @@
 using Visiotech.Pokemon.Application.Common.Models;
+using Visiotech.Pokemon.Application.Features.MyPokemons.Commands.CreateMyPokemon;
 using Visiotech.Pokemon.Application.Features.Moves.Commands.CreatePokemonMove;
 using Visiotech.Pokemon.Application.Features.Moves.Commands.DeletePokemonMove;
 using Visiotech.Pokemon.Application.Features.Moves.Commands.UpdatePokemonMove;
@@ -69,6 +70,14 @@ internal static class RequestLogContextFactory
                     command.SpecialDefense,
                     command.Speed
                 }
+            },
+            CreateMyPokemonCommand command => new
+            {
+                command.PokemonSpeciesId,
+                command.Level,
+                command.CurrentHealthPoints,
+                command.TotalHealthPoints,
+                command.EquippedMoveIds
             },
             UpdatePokemonSpeciesCommand command => new
             {
@@ -159,6 +168,15 @@ internal static class RequestLogContextFactory
                 learnableMoves.PokemonSpeciesId,
                 learnableMoves.PokemonSpeciesName,
                 MoveCount = learnableMoves.Moves.Count
+            },
+            MyPokemonResponse myPokemon => new
+            {
+                myPokemon.Id,
+                SpeciesId = myPokemon.Species.Id,
+                myPokemon.Level,
+                EquippedMoveCount = myPokemon.EquippedMoves.Count,
+                myPokemon.CurrentHealthPoints,
+                myPokemon.TotalHealthPoints
             },
             PokemonSpeciesCatalogResponse catalog => new
             {

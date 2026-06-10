@@ -21,6 +21,63 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
 
         modelBuilder.HasDefaultSchema("pokemon2");
 
+        modelBuilder.Entity("Visiotech.Pokemon.Domain.Pokemons.MyPokemon", b =>
+        {
+            b.Property<Guid>("Id")
+                .ValueGeneratedNever()
+                .HasColumnType("uuid");
+
+            b.Property<int>("CurrentHealthPoints")
+                .HasColumnType("integer")
+                .HasColumnName("current_health_points");
+
+            b.Property<Guid>("PokemonSpeciesId")
+                .HasColumnType("uuid")
+                .HasColumnName("pokemon_species_id");
+
+            b.Property<int>("TotalHealthPoints")
+                .HasColumnType("integer")
+                .HasColumnName("total_health_points");
+
+            b.HasKey("Id");
+
+            b.HasIndex("PokemonSpeciesId");
+
+            b.ToTable("my_pokemons", "pokemon2", t =>
+            {
+                t.HasCheckConstraint("ck_my_pokemons_current_health_positive", "\"current_health_points\" > 0");
+                t.HasCheckConstraint("ck_my_pokemons_current_health_range", "\"current_health_points\" <= \"total_health_points\"");
+                t.HasCheckConstraint("ck_my_pokemons_total_health_positive", "\"total_health_points\" > 0");
+            });
+        });
+
+        modelBuilder.Entity("Visiotech.Pokemon.Domain.Pokemons.MyPokemonMoveSlot", b =>
+        {
+            b.Property<Guid>("MyPokemonId")
+                .HasColumnType("uuid")
+                .HasColumnName("my_pokemon_id");
+
+            b.Property<int>("SlotNumber")
+                .HasColumnType("integer")
+                .HasColumnName("slot_number");
+
+            b.Property<Guid>("PokemonMoveId")
+                .HasColumnType("uuid")
+                .HasColumnName("pokemon_move_id");
+
+            b.HasKey("MyPokemonId", "SlotNumber");
+
+            b.HasIndex("PokemonMoveId");
+
+            b.HasIndex("MyPokemonId", "PokemonMoveId")
+                .IsUnique();
+
+            b.ToTable("my_pokemon_move_slots", "pokemon2", t =>
+            {
+                t.HasCheckConstraint("ck_my_pokemon_move_slots_slot_number", "\"slot_number\" BETWEEN 1 AND 4");
+            });
+        });
+
         modelBuilder.Entity("Visiotech.Pokemon.Domain.Pokemons.PokemonMove", b =>
         {
             b.Property<Guid>("Id")
@@ -107,6 +164,30 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
             });
         });
 
+        modelBuilder.Entity("Visiotech.Pokemon.Domain.Pokemons.MyPokemon", b =>
+        {
+            b.HasOne("Visiotech.Pokemon.Domain.Pokemons.PokemonSpecies", null)
+                .WithMany()
+                .HasForeignKey("PokemonSpeciesId")
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired();
+        });
+
+        modelBuilder.Entity("Visiotech.Pokemon.Domain.Pokemons.MyPokemonMoveSlot", b =>
+        {
+            b.HasOne("Visiotech.Pokemon.Domain.Pokemons.MyPokemon", null)
+                .WithMany("EquippedMoves")
+                .HasForeignKey("MyPokemonId")
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired();
+
+            b.HasOne("Visiotech.Pokemon.Domain.Pokemons.PokemonMove", null)
+                .WithMany()
+                .HasForeignKey("PokemonMoveId")
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired();
+        });
+
         modelBuilder.Entity("Visiotech.Pokemon.Domain.Pokemons.PokemonLearnableMove", b =>
         {
             b.HasOne("Visiotech.Pokemon.Domain.Pokemons.PokemonMove", null)
@@ -150,6 +231,32 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
             });
 
             b.Navigation("Name")
+                .IsRequired();
+        });
+
+        modelBuilder.Entity("Visiotech.Pokemon.Domain.Pokemons.MyPokemon", b =>
+        {
+            b.OwnsOne("Visiotech.Pokemon.Domain.Pokemons.Level", "Level", b1 =>
+            {
+                b1.Property<Guid>("MyPokemonId")
+                    .HasColumnType("uuid");
+
+                b1.Property<int>("Value")
+                    .HasColumnType("integer")
+                    .HasColumnName("level");
+
+                b1.HasKey("MyPokemonId");
+
+                b1.ToTable("my_pokemons", "pokemon2");
+
+                b1.WithOwner()
+                    .HasForeignKey("MyPokemonId");
+            });
+
+            b.Navigation("EquippedMoves")
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+            b.Navigation("Level")
                 .IsRequired();
         });
 

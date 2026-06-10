@@ -5,6 +5,8 @@ namespace Visiotech.Pokemon.Infrastructure.Persistence;
 
 public sealed class PokemonDbContext(DbContextOptions<PokemonDbContext> options) : DbContext(options)
 {
+    public DbSet<MyPokemon> MyPokemons => Set<MyPokemon>();
+    public DbSet<MyPokemonMoveSlot> MyPokemonMoveSlots => Set<MyPokemonMoveSlot>();
     public DbSet<PokemonLearnableMove> PokemonLearnableMoves => Set<PokemonLearnableMove>();
     public DbSet<PokemonMove> PokemonMoves => Set<PokemonMove>();
     public DbSet<PokemonSpecies> PokemonSpecies => Set<PokemonSpecies>();
@@ -136,6 +138,49 @@ public sealed class PokemonDbContext(DbContextOptions<PokemonDbContext> options)
                 .UsePropertyAccessMode(PropertyAccessMode.Field);
         });
 
+        modelBuilder.Entity<MyPokemon>(entity =>
+        {
+            entity.ToTable("my_pokemons", tableBuilder =>
+            {
+                tableBuilder.HasCheckConstraint("ck_my_pokemons_current_health_positive", "\"current_health_points\" > 0");
+                tableBuilder.HasCheckConstraint("ck_my_pokemons_total_health_positive", "\"total_health_points\" > 0");
+                tableBuilder.HasCheckConstraint("ck_my_pokemons_current_health_range", "\"current_health_points\" <= \"total_health_points\"");
+            });
+
+            entity.HasKey(myPokemon => myPokemon.Id);
+            entity.Property(myPokemon => myPokemon.Id).ValueGeneratedNever();
+
+            entity.Property(myPokemon => myPokemon.PokemonSpeciesId)
+                .HasColumnName("pokemon_species_id")
+                .IsRequired();
+
+            entity.OwnsOne(myPokemon => myPokemon.Level, level =>
+            {
+                level.Property(value => value.Value)
+                    .HasColumnName("level")
+                    .IsRequired();
+            });
+
+            entity.Property(myPokemon => myPokemon.CurrentHealthPoints)
+                .HasColumnName("current_health_points")
+                .IsRequired();
+
+            entity.Property(myPokemon => myPokemon.TotalHealthPoints)
+                .HasColumnName("total_health_points")
+                .IsRequired();
+
+            entity.HasOne<PokemonSpecies>()
+                .WithMany()
+                .HasForeignKey(myPokemon => myPokemon.PokemonSpeciesId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(myPokemon => myPokemon.PokemonSpeciesId);
+
+            entity.Navigation(myPokemon => myPokemon.Level).IsRequired();
+            entity.Navigation(myPokemon => myPokemon.EquippedMoves)
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+
         modelBuilder.Entity<PokemonLearnableMove>(entity =>
         {
             entity.ToTable("pokemon_species_learnable_moves");
@@ -161,6 +206,42 @@ public sealed class PokemonDbContext(DbContextOptions<PokemonDbContext> options)
                 .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasIndex(learnableMove => learnableMove.PokemonMoveId);
+        });
+
+        modelBuilder.Entity<MyPokemonMoveSlot>(entity =>
+        {
+            entity.ToTable("my_pokemon_move_slots", tableBuilder =>
+            {
+                tableBuilder.HasCheckConstraint("ck_my_pokemon_move_slots_slot_number", "\"slot_number\" BETWEEN 1 AND 4");
+            });
+
+            entity.HasKey(moveSlot => new { moveSlot.MyPokemonId, moveSlot.SlotNumber });
+
+            entity.Property(moveSlot => moveSlot.MyPokemonId)
+                .HasColumnName("my_pokemon_id")
+                .IsRequired();
+
+            entity.Property(moveSlot => moveSlot.SlotNumber)
+                .HasColumnName("slot_number")
+                .IsRequired();
+
+            entity.Property(moveSlot => moveSlot.PokemonMoveId)
+                .HasColumnName("pokemon_move_id")
+                .IsRequired();
+
+            entity.HasOne<MyPokemon>()
+                .WithMany(myPokemon => myPokemon.EquippedMoves)
+                .HasForeignKey(moveSlot => moveSlot.MyPokemonId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<PokemonMove>()
+                .WithMany()
+                .HasForeignKey(moveSlot => moveSlot.PokemonMoveId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(moveSlot => moveSlot.PokemonMoveId);
+            entity.HasIndex(moveSlot => new { moveSlot.MyPokemonId, moveSlot.PokemonMoveId })
+                .IsUnique();
         });
     }
 }

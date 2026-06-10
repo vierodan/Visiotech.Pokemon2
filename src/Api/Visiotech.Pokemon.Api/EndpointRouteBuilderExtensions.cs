@@ -9,6 +9,7 @@ public static class EndpointRouteBuilderExtensions
         app.MapSystemEndpoints();
         app.MapMoveEndpoints();
         app.MapPokemonEndpoints();
+        app.MapMyPokemonEndpoints();
 
         return app;
     }
