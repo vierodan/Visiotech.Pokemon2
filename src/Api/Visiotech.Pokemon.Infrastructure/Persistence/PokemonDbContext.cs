@@ -5,11 +5,67 @@ namespace Visiotech.Pokemon.Infrastructure.Persistence;
 
 public sealed class PokemonDbContext(DbContextOptions<PokemonDbContext> options) : DbContext(options)
 {
+    public DbSet<PokemonMove> PokemonMoves => Set<PokemonMove>();
     public DbSet<PokemonSpecies> PokemonSpecies => Set<PokemonSpecies>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("catalog");
+
+        modelBuilder.Entity<PokemonMove>(entity =>
+        {
+            entity.ToTable("pokemon_moves", tableBuilder =>
+            {
+                tableBuilder.HasCheckConstraint(
+                    "ck_pokemon_moves_category",
+                    "\"category\" IN ('Physical', 'Special', 'Status')");
+                tableBuilder.HasCheckConstraint(
+                    "ck_pokemon_moves_power_by_category",
+                    "(\"category\" = 'Status' AND \"power\" = 0) OR (\"category\" IN ('Physical', 'Special') AND \"power\" > 0)");
+            });
+
+            entity.HasKey(move => move.Id);
+            entity.Property(move => move.Id).ValueGeneratedNever();
+
+            entity.Property(move => move.NormalizedName)
+                .HasColumnName("normalized_name")
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.HasIndex(move => move.NormalizedName)
+                .IsUnique();
+
+            entity.OwnsOne(move => move.Name, name =>
+            {
+                name.Property(value => value.Value)
+                    .HasColumnName("name")
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                name.Property(value => value.NormalizedValue)
+                    .HasColumnName("name_normalized_value")
+                    .HasMaxLength(100)
+                    .IsRequired();
+            });
+
+            entity.Property(move => move.Type)
+                .HasColumnName("type")
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+
+            entity.Property(move => move.Category)
+                .HasColumnName("category")
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+
+            entity.Property(move => move.Power)
+                .HasColumnName("power")
+                .IsRequired();
+
+            entity.Navigation(move => move.Name).IsRequired();
+        });
 
         modelBuilder.Entity<PokemonSpecies>(entity =>
         {

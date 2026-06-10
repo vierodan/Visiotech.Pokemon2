@@ -15,6 +15,46 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
         modelBuilder
             .HasDefaultSchema("catalog");
 
+        modelBuilder.Entity("Visiotech.Pokemon.Domain.Pokemons.PokemonMove", b =>
+        {
+            b.Property<Guid>("Id")
+                .ValueGeneratedNever()
+                .HasColumnType("uuid");
+
+            b.Property<string>("Category")
+                .IsRequired()
+                .HasMaxLength(20)
+                .HasColumnType("character varying(20)")
+                .HasColumnName("category");
+
+            b.Property<string>("NormalizedName")
+                .IsRequired()
+                .HasMaxLength(100)
+                .HasColumnType("character varying(100)")
+                .HasColumnName("normalized_name");
+
+            b.Property<int>("Power")
+                .HasColumnType("integer")
+                .HasColumnName("power");
+
+            b.Property<string>("Type")
+                .IsRequired()
+                .HasMaxLength(20)
+                .HasColumnType("character varying(20)")
+                .HasColumnName("type");
+
+            b.HasKey("Id");
+
+            b.HasIndex("NormalizedName")
+                .IsUnique();
+
+            b.ToTable("pokemon_moves", "catalog", t =>
+            {
+                t.HasCheckConstraint("ck_pokemon_moves_category", "\"category\" IN ('Physical', 'Special', 'Status')");
+                t.HasCheckConstraint("ck_pokemon_moves_power_by_category", "(\"category\" = 'Status' AND \"power\" = 0) OR (\"category\" IN ('Physical', 'Special') AND \"power\" > 0)");
+            });
+        });
+
         modelBuilder.Entity("Visiotech.Pokemon.Domain.Pokemons.PokemonSpecies", b =>
         {
             b.Property<Guid>("Id")
@@ -42,6 +82,37 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
                 t.HasCheckConstraint("ck_pokemon_species_special_defense_positive", "\"special_defense\" > 0");
                 t.HasCheckConstraint("ck_pokemon_species_speed_positive", "\"speed\" > 0");
             });
+        });
+
+        modelBuilder.Entity("Visiotech.Pokemon.Domain.Pokemons.PokemonMove", b =>
+        {
+            b.OwnsOne("Visiotech.Pokemon.Domain.Pokemons.Name", "Name", b1 =>
+            {
+                b1.Property<Guid>("PokemonMoveId")
+                    .HasColumnType("uuid");
+
+                b1.Property<string>("NormalizedValue")
+                    .IsRequired()
+                    .HasMaxLength(100)
+                    .HasColumnType("character varying(100)")
+                    .HasColumnName("name_normalized_value");
+
+                b1.Property<string>("Value")
+                    .IsRequired()
+                    .HasMaxLength(100)
+                    .HasColumnType("character varying(100)")
+                    .HasColumnName("name");
+
+                b1.HasKey("PokemonMoveId");
+
+                b1.ToTable("pokemon_moves", "catalog");
+
+                b1.WithOwner()
+                    .HasForeignKey("PokemonMoveId");
+            });
+
+            b.Navigation("Name")
+                .IsRequired();
         });
 
         modelBuilder.Entity("Visiotech.Pokemon.Domain.Pokemons.PokemonSpecies", b =>

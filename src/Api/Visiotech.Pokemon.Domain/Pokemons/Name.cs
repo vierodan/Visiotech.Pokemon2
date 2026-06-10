@@ -23,13 +23,13 @@ public sealed record Name : ValueObject
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new DomainException("Pokemon name is required.");
+            throw new DomainException("Name is required.");
         }
 
         var normalized = value.Trim();
         if (normalized.Length > 100)
         {
-            throw new DomainException("Pokemon name cannot exceed 100 characters.");
+            throw new DomainException("Name cannot exceed 100 characters.");
         }
 
         return new Name(normalized, Normalize(normalized));

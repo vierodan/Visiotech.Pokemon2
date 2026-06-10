@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Visiotech.Pokemon.Application.Abstractions.Messaging;
 using Visiotech.Pokemon.Application.Common.Models;
+using Visiotech.Pokemon.Application.Features.Moves.Commands.CreatePokemonMove;
 using Visiotech.Pokemon.Application.Features.Pokemons.Commands.CreatePokemonSpecies;
 using Visiotech.Pokemon.Application.Features.Pokemons.Commands.DeletePokemonSpecies;
 using Visiotech.Pokemon.Application.Features.Pokemons.Commands.UpdatePokemonSpecies;
@@ -17,6 +18,7 @@ public static class DependencyInjection
         services.AddScoped<IQueryHandler<GetSystemInfoQuery, SystemInfoResponse>, GetSystemInfoQueryHandler>();
         services.AddScoped<IQueryHandler<GetPokemonsCatalogQuery, PokemonSpeciesCatalogResponse>, GetPokemonsCatalogQueryHandler>();
         services.AddScoped<IQueryHandler<GetPokemonSpeciesDetailQuery, PokemonSpeciesResponse>, GetPokemonSpeciesDetailQueryHandler>();
+        services.AddScoped<ICommandHandler<CreatePokemonMoveCommand, PokemonMoveResponse>, CreatePokemonMoveCommandHandler>();
         services.AddScoped<ICommandHandler<CreatePokemonSpeciesCommand, PokemonSpeciesResponse>, CreatePokemonSpeciesCommandHandler>();
         services.AddScoped<ICommandHandler<DeletePokemonSpeciesCommand, Guid>, DeletePokemonSpeciesCommandHandler>();
         services.AddScoped<ICommandHandler<UpdatePokemonSpeciesCommand, PokemonSpeciesResponse>, UpdatePokemonSpeciesCommandHandler>();

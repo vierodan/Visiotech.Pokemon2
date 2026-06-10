@@ -22,6 +22,14 @@ public static class ApiMappings
                 response.BaseStats.SpecialDefense,
                 response.BaseStats.Speed));
 
+    public static PokemonMoveContract ToContract(this PokemonMoveResponse response) =>
+        new(
+            response.Id,
+            response.Name,
+            response.Type,
+            response.Category,
+            response.Power);
+
     public static PokemonSpeciesCatalogContract ToContract(this PokemonSpeciesCatalogResponse response) =>
         new(
             response.Items.Select(item => item.ToContract()).ToArray(),

@@ -29,13 +29,20 @@ public sealed class DatabaseInitializer(
             return;
         }
 
-        if (await dbContext.PokemonSpecies.AnyAsync(cancellationToken))
+        if (!await dbContext.PokemonSpecies.AnyAsync(cancellationToken))
+        {
+            await dbContext.PokemonSpecies.AddRangeAsync(PokemonMvpRosterSeed.GetSpecies(), cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            logger.LogInformation("Seeded MVP pokemon species roster with {Count} records.", 10);
+        }
+
+        if (await dbContext.PokemonMoves.AnyAsync(cancellationToken))
         {
             return;
         }
 
-        await dbContext.PokemonSpecies.AddRangeAsync(PokemonMvpRosterSeed.GetSpecies(), cancellationToken);
+        await dbContext.PokemonMoves.AddRangeAsync(PokemonMvpMoveSeed.GetMoves(), cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("Seeded MVP pokemon species roster with {Count} records.", 10);
+        logger.LogInformation("Seeded MVP pokemon move catalog with {Count} records.", 27);
     }
 }
