@@ -16,6 +16,15 @@ public sealed class PokemonMoveRepository(PokemonDbContext dbContext)
             pokemonMove => pokemonMove.NormalizedName == normalizedName,
             cancellationToken);
 
+    public Task<bool> ExistsByNormalizedNameAsync(string normalizedName, Guid excludedId, CancellationToken cancellationToken) =>
+        dbContext.PokemonMoves.AnyAsync(
+            pokemonMove => pokemonMove.NormalizedName == normalizedName && pokemonMove.Id != excludedId,
+            cancellationToken);
+
+    public async Task<PokemonMove?> GetForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
+        await dbContext.PokemonMoves
+            .SingleOrDefaultAsync(pokemonMove => pokemonMove.Id == id, cancellationToken);
+
     public async Task<PokemonMove?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
         await dbContext.PokemonMoves
             .AsNoTracking()

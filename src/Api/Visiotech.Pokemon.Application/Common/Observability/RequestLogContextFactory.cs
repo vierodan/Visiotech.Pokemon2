@@ -1,5 +1,6 @@
 using Visiotech.Pokemon.Application.Common.Models;
 using Visiotech.Pokemon.Application.Features.Moves.Commands.CreatePokemonMove;
+using Visiotech.Pokemon.Application.Features.Moves.Commands.UpdatePokemonMove;
 using Visiotech.Pokemon.Application.Features.Moves.Queries.GetPokemonMoveDetail;
 using Visiotech.Pokemon.Application.Features.Moves.Queries.GetPokemonMovesCatalog;
 using Visiotech.Pokemon.Application.Features.Pokemons.Commands.CreatePokemonSpecies;
@@ -18,6 +19,14 @@ internal static class RequestLogContextFactory
         {
             CreatePokemonMoveCommand command => new
             {
+                command.Name,
+                command.Type,
+                command.Category,
+                command.Power
+            },
+            UpdatePokemonMoveCommand command => new
+            {
+                command.Id,
                 command.Name,
                 command.Type,
                 command.Category,

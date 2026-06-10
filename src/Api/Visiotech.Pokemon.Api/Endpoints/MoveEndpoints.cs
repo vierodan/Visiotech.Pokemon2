@@ -6,6 +6,7 @@ using Visiotech.Pokemon.Api.Contracts;
 using Visiotech.Pokemon.Application.Abstractions.Messaging;
 using Visiotech.Pokemon.Application.Common.Models;
 using Visiotech.Pokemon.Application.Features.Moves.Commands.CreatePokemonMove;
+using Visiotech.Pokemon.Application.Features.Moves.Commands.UpdatePokemonMove;
 using Visiotech.Pokemon.Application.Features.Moves.Queries.GetPokemonMoveDetail;
 using Visiotech.Pokemon.Application.Features.Moves.Queries.GetPokemonMovesCatalog;
 using Visiotech.Pokemon.Contracts;
@@ -21,6 +22,14 @@ public static class MoveEndpoints
             .WithSummary("Creates a move in the catalog.")
             .Produces<PokemonMoveContract>(StatusCodes.Status201Created)
             .ProducesValidationProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        endpoints.MapPut("/api/v1/moves/{id:guid}", UpdatePokemonMoveAsync)
+            .WithName("UpdatePokemonMove")
+            .WithSummary("Updates a move in the catalog.")
+            .Produces<PokemonMoveContract>(StatusCodes.Status200OK)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
         endpoints.MapGet("/api/v1/moves", GetPokemonMovesCatalogAsync)
@@ -52,6 +61,24 @@ public static class MoveEndpoints
             cancellationToken);
 
         return TypedResults.Created($"/api/v1/moves/{response.Id}", response.ToContract());
+    }
+
+    private static async Task<Ok<PokemonMoveContract>> UpdatePokemonMoveAsync(
+        Guid id,
+        UpdatePokemonMoveRequestContract request,
+        ICommandHandler<UpdatePokemonMoveCommand, PokemonMoveResponse> handler,
+        CancellationToken cancellationToken)
+    {
+        var response = await handler.Handle(
+            new UpdatePokemonMoveCommand(
+                id,
+                request.Name,
+                request.Type,
+                request.Category,
+                request.Power),
+            cancellationToken);
+
+        return TypedResults.Ok(response.ToContract());
     }
 
     private static async Task<Ok<PokemonMoveCatalogContract>> GetPokemonMovesCatalogAsync(

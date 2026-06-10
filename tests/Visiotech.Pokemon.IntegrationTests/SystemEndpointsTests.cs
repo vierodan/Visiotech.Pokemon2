@@ -164,6 +164,107 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
     }
 
     [Fact]
+    public async Task UpdatePokemonMove_Should_Update_Move_And_Keep_Curated_Catalog_Coherent()
+    {
+        foreach (var pokemonMove in PokemonMvpMoveSeed.GetMoves())
+        {
+            var createResponse = await _client.PostAsJsonAsync(
+                "/api/v1/moves",
+                new CreatePokemonMoveRequestContract(
+                    pokemonMove.Name.Value,
+                    pokemonMove.Type.ToString(),
+                    pokemonMove.Category.ToString(),
+                    pokemonMove.Power));
+
+            Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        }
+
+        var listResponse = await _client.GetAsync("/api/v1/moves?page=1&pageSize=50");
+        var listPayload = await listResponse.Content.ReadFromJsonAsync<PokemonMoveCatalogContract>();
+        Assert.NotNull(listPayload);
+
+        var thunderbolt = Assert.Single(listPayload.Items, item => item.Name == "Thunderbolt");
+
+        var updateResponse = await _client.PutAsJsonAsync(
+            $"/api/v1/moves/{thunderbolt.Id}",
+            new UpdatePokemonMoveRequestContract("Thunder Strike", "Electric", "Special", 95));
+
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+
+        var updatedPayload = await updateResponse.Content.ReadFromJsonAsync<PokemonMoveContract>();
+        Assert.NotNull(updatedPayload);
+        Assert.Equal(thunderbolt.Id, updatedPayload.Id);
+        Assert.Equal("Special", updatedPayload.Category);
+        Assert.Equal(95, updatedPayload.Power);
+
+        var refreshedListResponse = await _client.GetAsync("/api/v1/moves?page=1&pageSize=50");
+        Assert.Equal(HttpStatusCode.OK, refreshedListResponse.StatusCode);
+
+        var refreshedListPayload = await refreshedListResponse.Content.ReadFromJsonAsync<PokemonMoveCatalogContract>();
+        Assert.NotNull(refreshedListPayload);
+        Assert.Equal(27, refreshedListPayload.TotalCount);
+        Assert.DoesNotContain(refreshedListPayload.Items, item => item.Name == "Thunderbolt");
+
+        var updatedMove = Assert.Single(refreshedListPayload.Items, item => item.Name == "Thunder Strike");
+        Assert.Equal(thunderbolt.Id, updatedMove.Id);
+        Assert.Equal("Electric", updatedMove.Type);
+        Assert.Equal("Special", updatedMove.Category);
+
+        var detailResponse = await _client.GetAsync($"/api/v1/moves/{thunderbolt.Id}");
+        Assert.Equal(HttpStatusCode.OK, detailResponse.StatusCode);
+
+        var detailPayload = await detailResponse.Content.ReadFromJsonAsync<PokemonMoveContract>();
+        Assert.NotNull(detailPayload);
+        Assert.Equal("Thunder Strike", detailPayload.Name);
+        Assert.Equal(95, detailPayload.Power);
+    }
+
+    [Fact]
+    public async Task UpdatePokemonMove_Should_Return_NotFound_When_Move_Does_Not_Exist()
+    {
+        var response = await _client.PutAsJsonAsync(
+            $"/api/v1/moves/{Guid.NewGuid()}",
+            new UpdatePokemonMoveRequestContract("Surf", "Water", "Special", 90));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        await using var responseStream = await response.Content.ReadAsStreamAsync();
+        using var payload = await JsonDocument.ParseAsync(responseStream);
+        Assert.Equal("Not found", payload.RootElement.GetProperty("title").GetString());
+        Assert.Equal("id", payload.RootElement.GetProperty("target").GetString());
+    }
+
+    [Fact]
+    public async Task UpdatePokemonMove_Should_Return_Conflict_For_Duplicate_Name()
+    {
+        var thunderbolt = await CreateMoveAsync("Thunderbolt", "Electric", "Special", 90);
+        await CreateMoveAsync("Surf", "Water", "Special", 90);
+
+        var response = await _client.PutAsJsonAsync(
+            $"/api/v1/moves/{thunderbolt.Id}",
+            new UpdatePokemonMoveRequestContract("Surf", "Water", "Special", 90));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdatePokemonMove_Should_Return_Validation_Problem_For_Invalid_Data()
+    {
+        var protect = await CreateMoveAsync("Protect", "Normal", "Status", 0);
+
+        var response = await _client.PutAsJsonAsync(
+            $"/api/v1/moves/{protect.Id}",
+            new UpdatePokemonMoveRequestContract("Protect", "Normal", "Status", 10));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        await using var responseStream = await response.Content.ReadAsStreamAsync();
+        using var payload = await JsonDocument.ParseAsync(responseStream);
+        Assert.True(payload.RootElement.TryGetProperty("errors", out var errors));
+        Assert.True(errors.TryGetProperty("power", out _));
+    }
+
+    [Fact]
     public async Task GetPokemonsCatalog_Should_List_And_Get_Detail_After_Creating_Mvp_Roster()
     {
         foreach (var pokemonSpecies in PokemonMvpRosterSeed.GetSpecies())
