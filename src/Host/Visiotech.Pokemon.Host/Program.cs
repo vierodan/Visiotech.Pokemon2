@@ -3,6 +3,7 @@ using Scalar.AspNetCore;
 using Visiotech.Pokemon.Api;
 using Visiotech.Pokemon.Application;
 using Visiotech.Pokemon.Infrastructure;
+using Visiotech.Pokemon.Infrastructure.Persistence;
 
 LoadEnvironmentVariablesFromDotEnv();
 
@@ -11,9 +12,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddApi();
 builder.Services.AddOpenApi("v1");
 builder.Services.AddApplication();
-builder.Services.AddInfrastructure();
+builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
+
+await app.Services.GetRequiredService<DatabaseInitializer>().InitializeAsync(app.Lifetime.ApplicationStopping);
 
 app.UseExceptionHandler();
 app.UseHttpsRedirection();

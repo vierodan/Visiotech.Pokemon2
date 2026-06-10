@@ -46,4 +46,6 @@ dotnet test Visiotech.Pokemon.sln
 dotnet run --project src/Host/Visiotech.Pokemon.Host
 ```
 
+El host carga automaticamente variables desde el fichero `.env` de la raiz usando `DotNetEnv` antes de construir `WebApplicationBuilder`, sin sobrescribir variables de entorno ya definidas en el sistema.
+
 En entorno de desarrollo, la referencia OpenAPI queda disponible en `/scalar`.

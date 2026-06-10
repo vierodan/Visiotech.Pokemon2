@@ -4,6 +4,10 @@ namespace Visiotech.Pokemon.Domain.Pokemons;
 
 public sealed record BaseStats : ValueObject
 {
+    private BaseStats()
+    {
+    }
+
     private BaseStats(
         int health,
         int attack,
@@ -20,12 +24,12 @@ public sealed record BaseStats : ValueObject
         Speed = speed;
     }
 
-    public int Health { get; }
-    public int Attack { get; }
-    public int Defense { get; }
-    public int SpecialAttack { get; }
-    public int SpecialDefense { get; }
-    public int Speed { get; }
+    public int Health { get; private set; }
+    public int Attack { get; private set; }
+    public int Defense { get; private set; }
+    public int SpecialAttack { get; private set; }
+    public int SpecialDefense { get; private set; }
+    public int Speed { get; private set; }
 
     public static BaseStats Create(
         int health,

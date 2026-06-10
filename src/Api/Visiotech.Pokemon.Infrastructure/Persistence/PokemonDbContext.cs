@@ -1,0 +1,80 @@
+using Microsoft.EntityFrameworkCore;
+using Visiotech.Pokemon.Domain.Pokemons;
+
+namespace Visiotech.Pokemon.Infrastructure.Persistence;
+
+public sealed class PokemonDbContext(DbContextOptions<PokemonDbContext> options) : DbContext(options)
+{
+    public DbSet<PokemonSpecies> PokemonSpecies => Set<PokemonSpecies>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.HasDefaultSchema("catalog");
+
+        modelBuilder.Entity<PokemonSpecies>(entity =>
+        {
+            entity.ToTable("pokemon_species", tableBuilder =>
+            {
+                tableBuilder.HasCheckConstraint("ck_pokemon_species_secondary_type", "\"secondary_type\" IS NULL OR \"secondary_type\" <> \"primary_type\"");
+                tableBuilder.HasCheckConstraint("ck_pokemon_species_health_positive", "\"health\" > 0");
+                tableBuilder.HasCheckConstraint("ck_pokemon_species_attack_positive", "\"attack\" > 0");
+                tableBuilder.HasCheckConstraint("ck_pokemon_species_defense_positive", "\"defense\" > 0");
+                tableBuilder.HasCheckConstraint("ck_pokemon_species_special_attack_positive", "\"special_attack\" > 0");
+                tableBuilder.HasCheckConstraint("ck_pokemon_species_special_defense_positive", "\"special_defense\" > 0");
+                tableBuilder.HasCheckConstraint("ck_pokemon_species_speed_positive", "\"speed\" > 0");
+            });
+
+            entity.HasKey(species => species.Id);
+            entity.Property(species => species.Id).ValueGeneratedNever();
+
+            entity.Property(species => species.NormalizedName)
+                .HasColumnName("normalized_name")
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.HasIndex(species => species.NormalizedName)
+                .IsUnique();
+
+            entity.OwnsOne(species => species.Name, name =>
+            {
+                name.Property(value => value.Value)
+                    .HasColumnName("name")
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                name.Property(value => value.NormalizedValue)
+                    .HasColumnName("name_normalized_value")
+                    .HasMaxLength(100)
+                    .IsRequired();
+            });
+
+            entity.OwnsOne(species => species.Typing, typing =>
+            {
+                typing.Property(value => value.PrimaryType)
+                    .HasColumnName("primary_type")
+                    .HasConversion<string>()
+                    .HasMaxLength(20)
+                    .IsRequired();
+
+                typing.Property(value => value.SecondaryType)
+                    .HasColumnName("secondary_type")
+                    .HasConversion<string>()
+                    .HasMaxLength(20);
+            });
+
+            entity.OwnsOne(species => species.BaseStats, baseStats =>
+            {
+                baseStats.Property(value => value.Health).HasColumnName("health").IsRequired();
+                baseStats.Property(value => value.Attack).HasColumnName("attack").IsRequired();
+                baseStats.Property(value => value.Defense).HasColumnName("defense").IsRequired();
+                baseStats.Property(value => value.SpecialAttack).HasColumnName("special_attack").IsRequired();
+                baseStats.Property(value => value.SpecialDefense).HasColumnName("special_defense").IsRequired();
+                baseStats.Property(value => value.Speed).HasColumnName("speed").IsRequired();
+            });
+
+            entity.Navigation(species => species.Name).IsRequired();
+            entity.Navigation(species => species.Typing).IsRequired();
+            entity.Navigation(species => species.BaseStats).IsRequired();
+        });
+    }
+}

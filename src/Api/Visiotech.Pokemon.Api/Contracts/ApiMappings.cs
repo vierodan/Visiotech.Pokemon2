@@ -9,22 +9,16 @@ public static class ApiMappings
     public static SystemInfoContract ToContract(this SystemInfoResponse response) =>
         new(response.Service, response.Environment, response.Version, response.GeneratedAtUtc);
 
-    public static PokemonContract ToContract(this PokemonResponse response) =>
+    public static PokemonSpeciesContract ToContract(this PokemonSpeciesResponse response) =>
         new(
             response.Id,
             response.Name,
-            response.Type,
-            response.Level,
-            response.Health,
-            response.Attack,
-            response.Defense,
-            response.SpecialAttack,
-            response.SpecialDefense,
-            response.Speed,
-            response.Moves
-                .Select(move => new PokemonMoveContract(move.Name, move.Type, move.Power))
-                .ToArray(),
-            response.Abilities
-                .Select(ability => new PokemonAbilityContract(ability.Name))
-                .ToArray());
+            response.Types,
+            new PokemonBaseStatsContract(
+                response.BaseStats.Health,
+                response.BaseStats.Attack,
+                response.BaseStats.Defense,
+                response.BaseStats.SpecialAttack,
+                response.BaseStats.SpecialDefense,
+                response.BaseStats.Speed));
 }

@@ -130,7 +130,8 @@ public sealed class CleanArchitectureRulesTests
             "Level",
             "BaseStats",
             "Move",
-            "Ability"
+            "Ability",
+            "PokemonTyping"
         };
 
         var invalidTypes = domainAssembly

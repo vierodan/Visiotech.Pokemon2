@@ -4,12 +4,20 @@ namespace Visiotech.Pokemon.Domain.Pokemons;
 
 public sealed record Name : ValueObject
 {
-    private Name(string value)
+    private Name()
     {
-        Value = value;
+        Value = string.Empty;
+        NormalizedValue = string.Empty;
     }
 
-    public string Value { get; }
+    private Name(string value, string normalizedValue)
+    {
+        Value = value;
+        NormalizedValue = normalizedValue;
+    }
+
+    public string Value { get; private set; }
+    public string NormalizedValue { get; private set; }
 
     public static Name Create(string value)
     {
@@ -24,8 +32,10 @@ public sealed record Name : ValueObject
             throw new DomainException("Pokemon name cannot exceed 100 characters.");
         }
 
-        return new Name(normalized);
+        return new Name(normalized, Normalize(normalized));
     }
 
     public override string ToString() => Value;
+
+    private static string Normalize(string value) => value.Trim().ToUpperInvariant();
 }

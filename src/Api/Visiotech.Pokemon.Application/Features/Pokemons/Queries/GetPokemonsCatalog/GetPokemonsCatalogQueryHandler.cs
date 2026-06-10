@@ -4,35 +4,28 @@ using Visiotech.Pokemon.Application.Common.Models;
 
 namespace Visiotech.Pokemon.Application.Features.Pokemons.Queries.GetPokemonsCatalog;
 
-public sealed class GetPokemonsCatalogQueryHandler(IPokemonReadRepository repository)
-    : IQueryHandler<GetPokemonsCatalogQuery, IReadOnlyCollection<PokemonResponse>>
+public sealed class GetPokemonsCatalogQueryHandler(IPokemonSpeciesReadRepository repository)
+    : IQueryHandler<GetPokemonsCatalogQuery, IReadOnlyCollection<PokemonSpeciesResponse>>
 {
-    public async Task<IReadOnlyCollection<PokemonResponse>> Handle(
+    public async Task<IReadOnlyCollection<PokemonSpeciesResponse>> Handle(
         GetPokemonsCatalogQuery query,
         CancellationToken cancellationToken)
     {
-        var pokemons = await repository.GetAllAsync(cancellationToken);
+        var species = await repository.GetAllAsync(cancellationToken);
 
-        return pokemons
-            .OrderBy(pokemon => pokemon.Name.Value, StringComparer.OrdinalIgnoreCase)
-            .Select(pokemon => new PokemonResponse(
-                pokemon.Id,
-                pokemon.Name.Value,
-                pokemon.Type.ToString(),
-                pokemon.Level.Value,
-                pokemon.Stats.Health,
-                pokemon.Stats.Attack,
-                pokemon.Stats.Defense,
-                pokemon.Stats.SpecialAttack,
-                pokemon.Stats.SpecialDefense,
-                pokemon.Stats.Speed,
-                pokemon.Moves
-                    .Select(move => new PokemonMoveResponse(move.Name.Value, move.Type.ToString(), move.Power))
-                    .ToArray(),
-                pokemon.Abilities
-                    .Select(ability => new PokemonAbilityResponse(ability.Name.Value))
-                    .ToArray()))
+        return species
+            .OrderBy(static pokemonSpecies => pokemonSpecies.Name.Value, StringComparer.OrdinalIgnoreCase)
+            .Select(static pokemonSpecies => new PokemonSpeciesResponse(
+                pokemonSpecies.Id,
+                pokemonSpecies.Name.Value,
+                pokemonSpecies.Types.Select(static type => type.ToString()).ToArray(),
+                new PokemonBaseStatsResponse(
+                    pokemonSpecies.BaseStats.Health,
+                    pokemonSpecies.BaseStats.Attack,
+                    pokemonSpecies.BaseStats.Defense,
+                    pokemonSpecies.BaseStats.SpecialAttack,
+                    pokemonSpecies.BaseStats.SpecialDefense,
+                    pokemonSpecies.BaseStats.Speed)))
             .ToArray();
     }
 }
-
