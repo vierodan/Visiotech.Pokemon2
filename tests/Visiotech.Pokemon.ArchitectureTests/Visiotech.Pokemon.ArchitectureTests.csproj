@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NetArchTest.Rules" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Api\Visiotech.Pokemon.Api\Visiotech.Pokemon.Api.csproj" />
+    <ProjectReference Include="..\..\src\Api\Visiotech.Pokemon.Application\Visiotech.Pokemon.Application.csproj" />
+    <ProjectReference Include="..\..\src\Api\Visiotech.Pokemon.Contracts\Visiotech.Pokemon.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Api\Visiotech.Pokemon.Domain\Visiotech.Pokemon.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Api\Visiotech.Pokemon.Infrastructure\Visiotech.Pokemon.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Host\Visiotech.Pokemon.Host\Visiotech.Pokemon.Host.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>

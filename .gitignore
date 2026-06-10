@@ -1,0 +1,152 @@
+# Build output
+bin/
+obj/
+artifacts/
+publish/
+out/
+Debug/
+Release/
+x64/
+x86/
+ARM/
+ARM64/
+
+# .NET CLI and NuGet
+.dotnet/
+.nuget/
+*.nupkg
+*.snupkg
+*.symbols.nupkg
+project.lock.json
+project.assets.json
+packages/
+*.nuget.props
+*.nuget.targets
+
+# Test and coverage output
+TestResults/
+coverage/
+coverage.*
+*.coverage
+*.coveragexml
+*.trx
+*.vsp
+*.vspx
+*.vspscc
+*.lcov
+*.opencover.xml
+*.cobertura.xml
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.rsuser
+*.vcxproj.user
+*.dbmdl
+*.jfm
+*.pdb
+*.ilk
+*.ipch
+*.iobj
+*.ipdb
+*.tlog
+*.log
+*.lastbuildstate
+*.unsuccessfulbuild
+*.VisualState.xml
+Generated\ Files/
+
+# Visual Studio Code
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/*.code-snippets
+.history/
+
+# JetBrains Rider and ReSharper
+.idea/
+*.sln.iml
+_ReSharper*/
+*.DotSettings.user
+*.DotSettings.local
+
+# ASP.NET and local settings
+appsettings.Development.local.json
+appsettings.Local.json
+appsettings.*.local.json
+secrets.json
+*.parameters.local.json
+*.bicepparam.local
+infra/**/secrets.*
+
+# User-specific launch settings can contain local ports or environment variables.
+Properties/launchSettings.local.json
+
+# Logs and diagnostics
+logs/
+*.log
+*.binlog
+*.dmp
+*.mdmp
+
+# Generated files
+Generated/
+*.generated.cs
+*.g.cs
+*.g.i.cs
+*.AssemblyInfo.cs
+
+# Tools and temporary files
+.config/dotnet-tools.json.bak
+.tmp/
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.orig
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux desktop metadata
+.directory
+.Trash-*/
+
+# Node and frontend assets, if a web UI is added later
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+dist/
+.vite/
+.next/
+
+# Containers and local infrastructure
+.docker/
+docker-compose.override.yml
+docker-compose.*.override.yml
+
+# Local environment files
+.env
+.env.*
+!.env.example

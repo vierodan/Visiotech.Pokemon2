@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Visiotech.Pokemon.Application\Visiotech.Pokemon.Application.csproj" />
+    <ProjectReference Include="..\Visiotech.Pokemon.Domain\Visiotech.Pokemon.Domain.csproj" />
+  </ItemGroup>
+</Project>

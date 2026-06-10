@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Visiotech.Pokemon.Application\Visiotech.Pokemon.Application.csproj" />
+    <ProjectReference Include="..\Visiotech.Pokemon.Contracts\Visiotech.Pokemon.Contracts.csproj" />
+  </ItemGroup>
+</Project>
