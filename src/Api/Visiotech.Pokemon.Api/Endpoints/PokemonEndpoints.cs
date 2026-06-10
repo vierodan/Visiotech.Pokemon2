@@ -7,6 +7,7 @@ using Visiotech.Pokemon.Application.Abstractions.Messaging;
 using Visiotech.Pokemon.Application.Common.Models;
 using Visiotech.Pokemon.Application.Features.Pokemons.Commands.CreatePokemonSpecies;
 using Visiotech.Pokemon.Application.Features.Pokemons.Commands.DeletePokemonSpecies;
+using Visiotech.Pokemon.Application.Features.Pokemons.Commands.UpdatePokemonSpeciesLearnableMoves;
 using Visiotech.Pokemon.Application.Features.Pokemons.Commands.UpdatePokemonSpecies;
 using Visiotech.Pokemon.Application.Features.Pokemons.Queries.GetPokemonSpeciesDetail;
 using Visiotech.Pokemon.Application.Features.Pokemons.Queries.GetPokemonsCatalog;
@@ -37,6 +38,13 @@ public static class PokemonEndpoints
             .WithName("DeletePokemonSpecies")
             .WithSummary("Deletes a base pokemon species from the catalog when it has no active dependencies.")
             .Produces(StatusCodes.Status204NoContent)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        endpoints.MapPut("/api/v1/pokemons/{id:guid}/learnable-moves", UpdatePokemonSpeciesLearnableMovesAsync)
+            .WithName("UpdatePokemonSpeciesLearnableMoves")
+            .WithSummary("Associates or removes learnable moves for a base pokemon species.")
+            .Produces<PokemonLearnableMovesContract>(StatusCodes.Status200OK)
             .ProducesValidationProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -106,6 +114,22 @@ public static class PokemonEndpoints
     {
         await handler.Handle(new DeletePokemonSpeciesCommand(id), cancellationToken);
         return TypedResults.NoContent();
+    }
+
+    private static async Task<Ok<PokemonLearnableMovesContract>> UpdatePokemonSpeciesLearnableMovesAsync(
+        Guid id,
+        UpdatePokemonLearnableMovesRequestContract request,
+        ICommandHandler<UpdatePokemonSpeciesLearnableMovesCommand, PokemonLearnableMovesResponse> handler,
+        CancellationToken cancellationToken)
+    {
+        var response = await handler.Handle(
+            new UpdatePokemonSpeciesLearnableMovesCommand(
+                id,
+                request.AddMoveIds,
+                request.RemoveMoveIds),
+            cancellationToken);
+
+        return TypedResults.Ok(response.ToContract());
     }
 
     private static async Task<Ok<PokemonSpeciesCatalogContract>> GetPokemonsCatalogAsync(

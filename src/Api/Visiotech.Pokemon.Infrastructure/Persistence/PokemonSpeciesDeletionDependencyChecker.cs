@@ -87,9 +87,10 @@ public sealed class PokemonSpeciesDeletionDependencyChecker(PokemonDbContext dbC
             return false;
         }
 
-        schema = UsesSchemas() ? foreignKey.DeclaringEntityType.GetSchema() : null;
+        var storeSchema = foreignKey.DeclaringEntityType.GetSchema();
+        schema = UsesSchemas() ? storeSchema : null;
 
-        var storeObjectIdentifier = StoreObjectIdentifier.Table(tableName, schema);
+        var storeObjectIdentifier = StoreObjectIdentifier.Table(tableName, storeSchema);
         columnName = foreignKey.Properties[0].GetColumnName(storeObjectIdentifier) ?? string.Empty;
 
         return !string.IsNullOrWhiteSpace(columnName);

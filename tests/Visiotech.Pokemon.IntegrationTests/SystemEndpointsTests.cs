@@ -328,6 +328,102 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
     }
 
     [Fact]
+    public async Task UpdatePokemonSpeciesLearnableMoves_Should_Associate_Moves_To_Species()
+    {
+        var blastoise = await CreateSpeciesAsync("Blastoise", ["Water"], 79, 83, 100, 85, 105, 78);
+        var surf = await CreateMoveAsync("Surf", "Water", "Special", 90);
+        var protect = await CreateMoveAsync("Protect", "Normal", "Status", 0);
+
+        var response = await _client.PutAsJsonAsync(
+            $"/api/v1/pokemons/{blastoise.Id}/learnable-moves",
+            new UpdatePokemonLearnableMovesRequestContract([surf.Id, protect.Id], []));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<PokemonLearnableMovesContract>();
+        Assert.NotNull(payload);
+        Assert.Equal(blastoise.Id, payload.PokemonSpeciesId);
+        Assert.Equal("Blastoise", payload.PokemonSpeciesName);
+        Assert.Equal(2, payload.Moves.Count);
+        Assert.Contains(payload.Moves, move => move.Id == surf.Id && move.Name == "Surf");
+        Assert.Contains(payload.Moves, move => move.Id == protect.Id && move.Name == "Protect");
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PokemonDbContext>();
+        Assert.Equal(2, await dbContext.PokemonLearnableMoves.CountAsync());
+    }
+
+    [Fact]
+    public async Task UpdatePokemonSpeciesLearnableMoves_Should_Remove_Existing_Association()
+    {
+        var venusaur = await CreateSpeciesAsync("Venusaur", ["Grass", "Poison"], 80, 82, 83, 100, 100, 80);
+        var solarBeam = await CreateMoveAsync("Solar Beam", "Grass", "Special", 120);
+        var sludgeWave = await CreateMoveAsync("Sludge Wave", "Poison", "Special", 95);
+
+        var associateResponse = await _client.PutAsJsonAsync(
+            $"/api/v1/pokemons/{venusaur.Id}/learnable-moves",
+            new UpdatePokemonLearnableMovesRequestContract([solarBeam.Id, sludgeWave.Id], []));
+        Assert.Equal(HttpStatusCode.OK, associateResponse.StatusCode);
+
+        var removeResponse = await _client.PutAsJsonAsync(
+            $"/api/v1/pokemons/{venusaur.Id}/learnable-moves",
+            new UpdatePokemonLearnableMovesRequestContract([], [sludgeWave.Id]));
+
+        Assert.Equal(HttpStatusCode.OK, removeResponse.StatusCode);
+
+        var payload = await removeResponse.Content.ReadFromJsonAsync<PokemonLearnableMovesContract>();
+        Assert.NotNull(payload);
+        var remainingMove = Assert.Single(payload.Moves);
+        Assert.Equal(solarBeam.Id, remainingMove.Id);
+    }
+
+    [Fact]
+    public async Task UpdatePokemonSpeciesLearnableMoves_Should_Return_Validation_Problem_For_Duplicate_Association()
+    {
+        var charizard = await CreateSpeciesAsync("Charizard", ["Fire", "Flying"], 78, 84, 78, 109, 85, 100);
+        var flamethrower = await CreateMoveAsync("Flamethrower", "Fire", "Special", 90);
+
+        var firstResponse = await _client.PutAsJsonAsync(
+            $"/api/v1/pokemons/{charizard.Id}/learnable-moves",
+            new UpdatePokemonLearnableMovesRequestContract([flamethrower.Id], []));
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+
+        var duplicateResponse = await _client.PutAsJsonAsync(
+            $"/api/v1/pokemons/{charizard.Id}/learnable-moves",
+            new UpdatePokemonLearnableMovesRequestContract([flamethrower.Id], []));
+
+        Assert.Equal(HttpStatusCode.BadRequest, duplicateResponse.StatusCode);
+
+        await using var responseStream = await duplicateResponse.Content.ReadAsStreamAsync();
+        using var payload = await JsonDocument.ParseAsync(responseStream);
+        Assert.True(payload.RootElement.TryGetProperty("errors", out var errors));
+        Assert.True(errors.TryGetProperty("addMoveIds", out _));
+    }
+
+    [Fact]
+    public async Task UpdatePokemonSpeciesLearnableMoves_Should_Return_Error_For_Inexistent_References()
+    {
+        var response = await _client.PutAsJsonAsync(
+            $"/api/v1/pokemons/{Guid.NewGuid()}/learnable-moves",
+            new UpdatePokemonLearnableMovesRequestContract([Guid.NewGuid()], []));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        var species = await CreateSpeciesAsync("Snorlax", ["Normal"], 160, 110, 65, 65, 110, 30);
+
+        var missingMoveResponse = await _client.PutAsJsonAsync(
+            $"/api/v1/pokemons/{species.Id}/learnable-moves",
+            new UpdatePokemonLearnableMovesRequestContract([Guid.NewGuid()], []));
+
+        Assert.Equal(HttpStatusCode.BadRequest, missingMoveResponse.StatusCode);
+
+        await using var responseStream = await missingMoveResponse.Content.ReadAsStreamAsync();
+        using var payload = await JsonDocument.ParseAsync(responseStream);
+        Assert.True(payload.RootElement.TryGetProperty("errors", out var errors));
+        Assert.True(errors.TryGetProperty("moveIds", out _));
+    }
+
+    [Fact]
     public async Task GetPokemonsCatalog_Should_List_And_Get_Detail_After_Creating_Mvp_Roster()
     {
         foreach (var pokemonSpecies in PokemonMvpRosterSeed.GetSpecies())

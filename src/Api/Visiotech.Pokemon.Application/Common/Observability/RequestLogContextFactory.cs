@@ -6,6 +6,7 @@ using Visiotech.Pokemon.Application.Features.Moves.Queries.GetPokemonMoveDetail;
 using Visiotech.Pokemon.Application.Features.Moves.Queries.GetPokemonMovesCatalog;
 using Visiotech.Pokemon.Application.Features.Pokemons.Commands.CreatePokemonSpecies;
 using Visiotech.Pokemon.Application.Features.Pokemons.Commands.DeletePokemonSpecies;
+using Visiotech.Pokemon.Application.Features.Pokemons.Commands.UpdatePokemonSpeciesLearnableMoves;
 using Visiotech.Pokemon.Application.Features.Pokemons.Commands.UpdatePokemonSpecies;
 using Visiotech.Pokemon.Application.Features.Pokemons.Queries.GetPokemonSpeciesDetail;
 using Visiotech.Pokemon.Application.Features.Pokemons.Queries.GetPokemonsCatalog;
@@ -78,6 +79,12 @@ internal static class RequestLogContextFactory
                     command.Speed
                 }
             },
+            UpdatePokemonSpeciesLearnableMovesCommand command => new
+            {
+                command.PokemonSpeciesId,
+                command.AddMoveIds,
+                command.RemoveMoveIds
+            },
             DeletePokemonSpeciesCommand command => new
             {
                 command.Id
@@ -130,6 +137,12 @@ internal static class RequestLogContextFactory
                 species.Id,
                 species.Name,
                 TypeCount = species.Types.Count
+            },
+            PokemonLearnableMovesResponse learnableMoves => new
+            {
+                learnableMoves.PokemonSpeciesId,
+                learnableMoves.PokemonSpeciesName,
+                MoveCount = learnableMoves.Moves.Count
             },
             PokemonSpeciesCatalogResponse catalog => new
             {

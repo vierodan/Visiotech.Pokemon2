@@ -55,6 +55,23 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
             });
         });
 
+        modelBuilder.Entity("Visiotech.Pokemon.Domain.Pokemons.PokemonLearnableMove", b =>
+        {
+            b.Property<Guid>("PokemonSpeciesId")
+                .HasColumnType("uuid")
+                .HasColumnName("pokemon_species_id");
+
+            b.Property<Guid>("PokemonMoveId")
+                .HasColumnType("uuid")
+                .HasColumnName("pokemon_move_id");
+
+            b.HasKey("PokemonSpeciesId", "PokemonMoveId");
+
+            b.HasIndex("PokemonMoveId");
+
+            b.ToTable("pokemon_species_learnable_moves", "catalog");
+        });
+
         modelBuilder.Entity("Visiotech.Pokemon.Domain.Pokemons.PokemonSpecies", b =>
         {
             b.Property<Guid>("Id")
@@ -82,6 +99,21 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
                 t.HasCheckConstraint("ck_pokemon_species_special_defense_positive", "\"special_defense\" > 0");
                 t.HasCheckConstraint("ck_pokemon_species_speed_positive", "\"speed\" > 0");
             });
+        });
+
+        modelBuilder.Entity("Visiotech.Pokemon.Domain.Pokemons.PokemonLearnableMove", b =>
+        {
+            b.HasOne("Visiotech.Pokemon.Domain.Pokemons.PokemonMove", null)
+                .WithMany()
+                .HasForeignKey("PokemonMoveId")
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired();
+
+            b.HasOne("Visiotech.Pokemon.Domain.Pokemons.PokemonSpecies", null)
+                .WithMany("LearnableMoves")
+                .HasForeignKey("PokemonSpeciesId")
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired();
         });
 
         modelBuilder.Entity("Visiotech.Pokemon.Domain.Pokemons.PokemonMove", b =>
@@ -211,6 +243,9 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
 
             b.Navigation("Typing")
                 .IsRequired();
+
+            b.Navigation("LearnableMoves")
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
         });
     }
 }

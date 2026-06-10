@@ -30,6 +30,12 @@ public static class ApiMappings
             response.Category,
             response.Power);
 
+    public static PokemonLearnableMovesContract ToContract(this PokemonLearnableMovesResponse response) =>
+        new(
+            response.PokemonSpeciesId,
+            response.PokemonSpeciesName,
+            response.Moves.Select(item => item.ToContract()).ToArray());
+
     public static PokemonMoveCatalogContract ToContract(this PokemonMoveCatalogResponse response) =>
         new(
             response.Items.Select(item => item.ToContract()).ToArray(),

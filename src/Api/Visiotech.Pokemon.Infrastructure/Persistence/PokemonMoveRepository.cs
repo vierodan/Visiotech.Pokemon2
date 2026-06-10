@@ -32,6 +32,21 @@ public sealed class PokemonMoveRepository(PokemonDbContext dbContext)
             .AsNoTracking()
             .SingleOrDefaultAsync(pokemonMove => pokemonMove.Id == id, cancellationToken);
 
+    public async Task<IReadOnlyCollection<PokemonMove>> GetByIdsAsync(
+        IReadOnlyCollection<Guid> ids,
+        CancellationToken cancellationToken)
+    {
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        return await dbContext.PokemonMoves
+            .AsNoTracking()
+            .Where(pokemonMove => ids.Contains(pokemonMove.Id))
+            .ToArrayAsync(cancellationToken);
+    }
+
     public async Task<PokemonMoveCatalogPage> SearchAsync(
         PokemonMoveCatalogFilter filter,
         CancellationToken cancellationToken)

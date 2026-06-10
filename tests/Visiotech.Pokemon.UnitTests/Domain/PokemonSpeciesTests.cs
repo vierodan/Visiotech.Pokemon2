@@ -27,4 +27,39 @@ public sealed class PokemonSpeciesTests
         var exception = Assert.Throws<DomainException>(action);
         Assert.Contains("unique", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void AddLearnableMove_Should_Reject_Duplicate_Move_Association()
+    {
+        var pokemonSpecies = PokemonSpecies.Create(
+            Guid.NewGuid(),
+            Name.Create("Blastoise"),
+            PokemonTyping.Create([PokemonType.Water]),
+            BaseStats.Create(79, 83, 100, 85, 105, 78));
+        var moveId = Guid.NewGuid();
+
+        pokemonSpecies.AddLearnableMove(moveId);
+
+        var action = () => pokemonSpecies.AddLearnableMove(moveId);
+
+        var exception = Assert.Throws<DomainException>(action);
+        Assert.Contains("duplicate", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void RemoveLearnableMove_Should_Remove_Existing_Association()
+    {
+        var pokemonSpecies = PokemonSpecies.Create(
+            Guid.NewGuid(),
+            Name.Create("Venusaur"),
+            PokemonTyping.Create([PokemonType.Grass, PokemonType.Poison]),
+            BaseStats.Create(80, 82, 83, 100, 100, 80));
+        var moveId = Guid.NewGuid();
+
+        pokemonSpecies.AddLearnableMove(moveId);
+
+        pokemonSpecies.RemoveLearnableMove(moveId);
+
+        Assert.Empty(pokemonSpecies.LearnableMoveIds);
+    }
 }

@@ -43,6 +43,14 @@ public sealed class GetPokemonMoveDetailQueryHandlerTests
         public Task<PokemonMove?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
             Task.FromResult(move);
 
+        public Task<IReadOnlyCollection<PokemonMove>> GetByIdsAsync(
+            IReadOnlyCollection<Guid> ids,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyCollection<PokemonMove>>(
+                move is null || !ids.Contains(move.Id)
+                    ? []
+                    : [move]);
+
         public Task<PokemonMoveCatalogPage> SearchAsync(PokemonMoveCatalogFilter filter, CancellationToken cancellationToken) =>
             Task.FromResult(new PokemonMoveCatalogPage([], 0));
     }

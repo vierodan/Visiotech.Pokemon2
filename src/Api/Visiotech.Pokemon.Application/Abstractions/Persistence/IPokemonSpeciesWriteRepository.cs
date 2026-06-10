@@ -12,5 +12,7 @@ public interface IPokemonSpeciesWriteRepository
 
     Task<PokemonSpecies?> GetForUpdateAsync(Guid id, CancellationToken cancellationToken);
 
+    Task<PokemonSpecies?> GetForUpdateWithLearnableMovesAsync(Guid id, CancellationToken cancellationToken);
+
     void Remove(PokemonSpecies pokemonSpecies);
 }

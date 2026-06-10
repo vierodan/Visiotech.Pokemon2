@@ -8,4 +8,6 @@ public interface IPokemonMoveReadRepository
     Task<PokemonMoveCatalogPage> SearchAsync(PokemonMoveCatalogFilter filter, CancellationToken cancellationToken);
 
     Task<PokemonMove?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
+
+    Task<IReadOnlyCollection<PokemonMove>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);
 }

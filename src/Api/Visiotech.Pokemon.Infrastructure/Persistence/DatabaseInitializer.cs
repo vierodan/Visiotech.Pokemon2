@@ -51,11 +51,22 @@ public sealed class DatabaseInitializer(
         if (await dbContext.PokemonMoves.AnyAsync(cancellationToken))
         {
             logger.LogInformation("Skipping move seed because the move catalog already contains records.");
+        }
+        else
+        {
+            await dbContext.PokemonMoves.AddRangeAsync(PokemonMvpMoveSeed.GetMoves(), cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            logger.LogInformation("Seeded MVP pokemon move catalog with {Count} records.", 27);
+        }
+
+        if (await dbContext.PokemonLearnableMoves.AnyAsync(cancellationToken))
+        {
+            logger.LogInformation("Skipping learnable move seed because the learnable catalog already contains records.");
             return;
         }
 
-        await dbContext.PokemonMoves.AddRangeAsync(PokemonMvpMoveSeed.GetMoves(), cancellationToken);
+        await dbContext.PokemonLearnableMoves.AddRangeAsync(PokemonMvpLearnableMoveSeed.GetLearnableMoves(), cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("Seeded MVP pokemon move catalog with {Count} records.", 27);
+        logger.LogInformation("Seeded MVP pokemon learnable move catalog with {Count} records.", 48);
     }
 }

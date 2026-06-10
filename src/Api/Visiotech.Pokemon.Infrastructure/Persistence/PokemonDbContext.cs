@@ -5,6 +5,7 @@ namespace Visiotech.Pokemon.Infrastructure.Persistence;
 
 public sealed class PokemonDbContext(DbContextOptions<PokemonDbContext> options) : DbContext(options)
 {
+    public DbSet<PokemonLearnableMove> PokemonLearnableMoves => Set<PokemonLearnableMove>();
     public DbSet<PokemonMove> PokemonMoves => Set<PokemonMove>();
     public DbSet<PokemonSpecies> PokemonSpecies => Set<PokemonSpecies>();
 
@@ -131,6 +132,35 @@ public sealed class PokemonDbContext(DbContextOptions<PokemonDbContext> options)
             entity.Navigation(species => species.Name).IsRequired();
             entity.Navigation(species => species.Typing).IsRequired();
             entity.Navigation(species => species.BaseStats).IsRequired();
+            entity.Navigation(species => species.LearnableMoves)
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+
+        modelBuilder.Entity<PokemonLearnableMove>(entity =>
+        {
+            entity.ToTable("pokemon_species_learnable_moves");
+
+            entity.HasKey(learnableMove => new { learnableMove.PokemonSpeciesId, learnableMove.PokemonMoveId });
+
+            entity.Property(learnableMove => learnableMove.PokemonSpeciesId)
+                .HasColumnName("pokemon_species_id")
+                .IsRequired();
+
+            entity.Property(learnableMove => learnableMove.PokemonMoveId)
+                .HasColumnName("pokemon_move_id")
+                .IsRequired();
+
+            entity.HasOne<PokemonSpecies>()
+                .WithMany(species => species.LearnableMoves)
+                .HasForeignKey(learnableMove => learnableMove.PokemonSpeciesId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<PokemonMove>()
+                .WithMany()
+                .HasForeignKey(learnableMove => learnableMove.PokemonMoveId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(learnableMove => learnableMove.PokemonMoveId);
         });
     }
 }
