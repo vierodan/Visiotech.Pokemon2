@@ -8,6 +8,7 @@ using Visiotech.Pokemon.Application.Features.Pokemons.Commands.CreatePokemonSpec
 using Visiotech.Pokemon.Application.Features.Pokemons.Commands.DeletePokemonSpecies;
 using Visiotech.Pokemon.Application.Features.Pokemons.Commands.UpdatePokemonSpeciesLearnableMoves;
 using Visiotech.Pokemon.Application.Features.Pokemons.Commands.UpdatePokemonSpecies;
+using Visiotech.Pokemon.Application.Features.Pokemons.Queries.GetPokemonSpeciesLearnableMoves;
 using Visiotech.Pokemon.Application.Features.Pokemons.Queries.GetPokemonSpeciesDetail;
 using Visiotech.Pokemon.Application.Features.Pokemons.Queries.GetPokemonsCatalog;
 using Visiotech.Pokemon.Application.Features.System.Queries.GetSystemInfo;
@@ -90,6 +91,10 @@ internal static class RequestLogContextFactory
                 command.Id
             },
             GetPokemonSpeciesDetailQuery query => new
+            {
+                query.Id
+            },
+            GetPokemonSpeciesLearnableMovesQuery query => new
             {
                 query.Id
             },

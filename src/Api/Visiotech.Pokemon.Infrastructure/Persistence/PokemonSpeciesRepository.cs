@@ -37,6 +37,12 @@ public sealed class PokemonSpeciesRepository(PokemonDbContext dbContext)
             .AsNoTracking()
             .SingleOrDefaultAsync(pokemonSpecies => pokemonSpecies.Id == id, cancellationToken);
 
+    public async Task<PokemonSpecies?> GetByIdWithLearnableMovesAsync(Guid id, CancellationToken cancellationToken) =>
+        await dbContext.PokemonSpecies
+            .AsNoTracking()
+            .Include(pokemonSpecies => pokemonSpecies.LearnableMoves)
+            .SingleOrDefaultAsync(pokemonSpecies => pokemonSpecies.Id == id, cancellationToken);
+
     public async Task<PokemonSpeciesCatalogPage> SearchAsync(
         PokemonSpeciesCatalogFilter filter,
         CancellationToken cancellationToken)

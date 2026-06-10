@@ -9,6 +9,7 @@ using Visiotech.Pokemon.Application.Features.Pokemons.Commands.CreatePokemonSpec
 using Visiotech.Pokemon.Application.Features.Pokemons.Commands.DeletePokemonSpecies;
 using Visiotech.Pokemon.Application.Features.Pokemons.Commands.UpdatePokemonSpeciesLearnableMoves;
 using Visiotech.Pokemon.Application.Features.Pokemons.Commands.UpdatePokemonSpecies;
+using Visiotech.Pokemon.Application.Features.Pokemons.Queries.GetPokemonSpeciesLearnableMoves;
 using Visiotech.Pokemon.Application.Features.Pokemons.Queries.GetPokemonSpeciesDetail;
 using Visiotech.Pokemon.Application.Features.Pokemons.Queries.GetPokemonsCatalog;
 using Visiotech.Pokemon.Contracts;
@@ -58,6 +59,12 @@ public static class PokemonEndpoints
             .WithName("GetPokemonSpeciesDetail")
             .WithSummary("Returns the detail of a base pokemon species.")
             .Produces<PokemonSpeciesContract>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        endpoints.MapGet("/api/v1/pokemons/{id:guid}/learnable-moves", GetPokemonSpeciesLearnableMovesAsync)
+            .WithName("GetPokemonSpeciesLearnableMoves")
+            .WithSummary("Returns the learnable move catalog for a base pokemon species.")
+            .Produces<PokemonLearnableMovesContract>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         return endpoints;
@@ -153,6 +160,15 @@ public static class PokemonEndpoints
         CancellationToken cancellationToken)
     {
         var response = await handler.Handle(new GetPokemonSpeciesDetailQuery(id), cancellationToken);
+        return TypedResults.Ok(response.ToContract());
+    }
+
+    private static async Task<Ok<PokemonLearnableMovesContract>> GetPokemonSpeciesLearnableMovesAsync(
+        Guid id,
+        IQueryHandler<GetPokemonSpeciesLearnableMovesQuery, PokemonLearnableMovesResponse> handler,
+        CancellationToken cancellationToken)
+    {
+        var response = await handler.Handle(new GetPokemonSpeciesLearnableMovesQuery(id), cancellationToken);
         return TypedResults.Ok(response.ToContract());
     }
 }

@@ -8,4 +8,6 @@ public interface IPokemonSpeciesReadRepository
     Task<PokemonSpeciesCatalogPage> SearchAsync(PokemonSpeciesCatalogFilter filter, CancellationToken cancellationToken);
 
     Task<PokemonSpecies?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
+
+    Task<PokemonSpecies?> GetByIdWithLearnableMovesAsync(Guid id, CancellationToken cancellationToken);
 }
