@@ -16,6 +16,15 @@ public sealed class PokemonSpeciesRepository(PokemonDbContext dbContext)
             pokemonSpecies => pokemonSpecies.NormalizedName == normalizedName,
             cancellationToken);
 
+    public Task<bool> ExistsByNormalizedNameAsync(string normalizedName, Guid excludedId, CancellationToken cancellationToken) =>
+        dbContext.PokemonSpecies.AnyAsync(
+            pokemonSpecies => pokemonSpecies.NormalizedName == normalizedName && pokemonSpecies.Id != excludedId,
+            cancellationToken);
+
+    public async Task<PokemonSpecies?> GetForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
+        await dbContext.PokemonSpecies
+            .SingleOrDefaultAsync(pokemonSpecies => pokemonSpecies.Id == id, cancellationToken);
+
     public async Task<PokemonSpecies?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
         await dbContext.PokemonSpecies
             .AsNoTracking()

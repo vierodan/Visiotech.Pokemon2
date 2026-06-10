@@ -123,6 +123,122 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
     }
 
     [Fact]
+    public async Task UpdatePokemonSpecies_Should_Update_Species_And_Keep_Mvp_Roster_Coherent()
+    {
+        foreach (var pokemonSpecies in PokemonMvpRosterSeed.GetSpecies())
+        {
+            var createResponse = await _client.PostAsJsonAsync(
+                "/api/v1/pokemons",
+                new CreatePokemonSpeciesRequestContract(
+                    pokemonSpecies.Name.Value,
+                    pokemonSpecies.Types.Select(type => type.ToString()).ToArray(),
+                    new PokemonBaseStatsContract(
+                        pokemonSpecies.BaseStats.Health,
+                        pokemonSpecies.BaseStats.Attack,
+                        pokemonSpecies.BaseStats.Defense,
+                        pokemonSpecies.BaseStats.SpecialAttack,
+                        pokemonSpecies.BaseStats.SpecialDefense,
+                        pokemonSpecies.BaseStats.Speed)));
+
+            Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        }
+
+        var listResponse = await _client.GetAsync("/api/v1/pokemons");
+        var listPayload = await listResponse.Content.ReadFromJsonAsync<PokemonSpeciesCatalogContract>();
+        Assert.NotNull(listPayload);
+
+        var charizard = Assert.Single(listPayload.Items, item => item.Name == "Charizard");
+
+        var updateResponse = await _client.PutAsJsonAsync(
+            $"/api/v1/pokemons/{charizard.Id}",
+            new UpdatePokemonSpeciesRequestContract(
+                "Charizard Apex",
+                ["Fire", "Dragon"],
+                new PokemonBaseStatsContract(80, 90, 82, 120, 90, 105)));
+
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+
+        var updatedPayload = await updateResponse.Content.ReadFromJsonAsync<PokemonSpeciesContract>();
+        Assert.NotNull(updatedPayload);
+        Assert.Equal(charizard.Id, updatedPayload.Id);
+        Assert.Equal(["Fire", "Dragon"], updatedPayload.Types);
+
+        var refreshedListResponse = await _client.GetAsync("/api/v1/pokemons?page=1&pageSize=20");
+        Assert.Equal(HttpStatusCode.OK, refreshedListResponse.StatusCode);
+
+        var refreshedListPayload = await refreshedListResponse.Content.ReadFromJsonAsync<PokemonSpeciesCatalogContract>();
+        Assert.NotNull(refreshedListPayload);
+        Assert.Equal(10, refreshedListPayload.TotalCount);
+        Assert.DoesNotContain(refreshedListPayload.Items, item => item.Name == "Charizard");
+
+        var updatedSpecies = Assert.Single(refreshedListPayload.Items, item => item.Name == "Charizard Apex");
+        Assert.Equal(charizard.Id, updatedSpecies.Id);
+
+        var detailResponse = await _client.GetAsync($"/api/v1/pokemons/{charizard.Id}");
+        Assert.Equal(HttpStatusCode.OK, detailResponse.StatusCode);
+
+        var detailPayload = await detailResponse.Content.ReadFromJsonAsync<PokemonSpeciesContract>();
+        Assert.NotNull(detailPayload);
+        Assert.Equal("Charizard Apex", detailPayload.Name);
+        Assert.Equal(["Fire", "Dragon"], detailPayload.Types);
+        Assert.Equal(120, detailPayload.BaseStats.SpecialAttack);
+    }
+
+    [Fact]
+    public async Task UpdatePokemonSpecies_Should_Return_NotFound_When_Species_Does_Not_Exist()
+    {
+        var response = await _client.PutAsJsonAsync(
+            $"/api/v1/pokemons/{Guid.NewGuid()}",
+            new UpdatePokemonSpeciesRequestContract(
+                "Charizard",
+                ["Fire", "Flying"],
+                new PokemonBaseStatsContract(78, 84, 78, 109, 85, 100)));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        await using var responseStream = await response.Content.ReadAsStreamAsync();
+        using var payload = await JsonDocument.ParseAsync(responseStream);
+        Assert.Equal("Not found", payload.RootElement.GetProperty("title").GetString());
+        Assert.Equal("id", payload.RootElement.GetProperty("target").GetString());
+    }
+
+    [Fact]
+    public async Task UpdatePokemonSpecies_Should_Return_Conflict_For_Duplicate_Name()
+    {
+        var firstSpecies = await CreateSpeciesAsync("Charizard", ["Fire", "Flying"], 78, 84, 78, 109, 85, 100);
+        await CreateSpeciesAsync("Blastoise", ["Water"], 79, 83, 100, 85, 105, 78);
+
+        var response = await _client.PutAsJsonAsync(
+            $"/api/v1/pokemons/{firstSpecies.Id}",
+            new UpdatePokemonSpeciesRequestContract(
+                "Blastoise",
+                ["Water"],
+                new PokemonBaseStatsContract(79, 83, 100, 85, 105, 78)));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdatePokemonSpecies_Should_Return_Validation_Problem_For_Invalid_Types()
+    {
+        var species = await CreateSpeciesAsync("Golem", ["Rock", "Ground"], 80, 120, 130, 55, 65, 45);
+
+        var response = await _client.PutAsJsonAsync(
+            $"/api/v1/pokemons/{species.Id}",
+            new UpdatePokemonSpeciesRequestContract(
+                "Golem",
+                ["Rock", "Rock", "Ground"],
+                new PokemonBaseStatsContract(80, 120, 130, 55, 65, 45)));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        await using var responseStream = await response.Content.ReadAsStreamAsync();
+        using var payload = await JsonDocument.ParseAsync(responseStream);
+        Assert.True(payload.RootElement.TryGetProperty("errors", out var errors));
+        Assert.True(errors.TryGetProperty("types", out _));
+    }
+
+    [Fact]
     public async Task GetPokemonSpeciesDetail_Should_Return_NotFound_When_Species_Does_Not_Exist()
     {
         var response = await _client.GetAsync($"/api/v1/pokemons/{Guid.NewGuid()}");
@@ -168,7 +284,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal(HttpStatusCode.Conflict, secondResponse.StatusCode);
     }
 
-    private async Task CreateSpeciesAsync(
+    private async Task<PokemonSpeciesContract> CreateSpeciesAsync(
         string name,
         IReadOnlyCollection<string> types,
         int health,
@@ -186,5 +302,8 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
                 new PokemonBaseStatsContract(health, attack, defense, specialAttack, specialDefense, speed)));
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<PokemonSpeciesContract>();
+        Assert.NotNull(payload);
+        return payload;
     }
 }

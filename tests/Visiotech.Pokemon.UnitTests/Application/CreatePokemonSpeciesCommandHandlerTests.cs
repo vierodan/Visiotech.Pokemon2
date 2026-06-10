@@ -1,3 +1,4 @@
+using NSubstitute;
 using Visiotech.Pokemon.Application.Abstractions.Persistence;
 using Visiotech.Pokemon.Application.Common.Exceptions;
 using Visiotech.Pokemon.Application.Features.Pokemons.Commands.CreatePokemonSpecies;
@@ -10,8 +11,10 @@ public sealed class CreatePokemonSpeciesCommandHandlerTests
     [Fact]
     public async Task Handle_Should_Create_Species_When_Command_Is_Valid()
     {
-        var repository = new FakePokemonSpeciesWriteRepository();
-        var unitOfWork = new FakeUnitOfWork();
+        var repository = Substitute.For<IPokemonSpeciesWriteRepository>();
+        repository.ExistsByNormalizedNameAsync("BLASTOISE", Arg.Any<CancellationToken>()).Returns(false);
+
+        var unitOfWork = Substitute.For<IUnitOfWork>();
         var handler = new CreatePokemonSpeciesCommandHandler(repository, unitOfWork);
 
         var result = await handler.Handle(
@@ -28,16 +31,18 @@ public sealed class CreatePokemonSpeciesCommandHandlerTests
 
         Assert.Equal("Blastoise", result.Name);
         Assert.Equal(["Water"], result.Types);
-        Assert.True(unitOfWork.SaveChangesCalled);
-        Assert.Single(repository.AddedSpecies);
+        await repository.Received(1).AddAsync(
+            Arg.Is<PokemonSpecies>(species => species.Name.Value == "Blastoise" && species.Types.Count == 1),
+            Arg.Any<CancellationToken>());
+        await unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Handle_Should_Reject_Invalid_Request_With_Explicit_Errors()
     {
-        var handler = new CreatePokemonSpeciesCommandHandler(
-            new FakePokemonSpeciesWriteRepository(),
-            new FakeUnitOfWork());
+        var repository = Substitute.For<IPokemonSpeciesWriteRepository>();
+        var unitOfWork = Substitute.For<IUnitOfWork>();
+        var handler = new CreatePokemonSpeciesCommandHandler(repository, unitOfWork);
 
         var exception = await Assert.ThrowsAsync<ApplicationValidationException>(() => handler.Handle(
             new CreatePokemonSpeciesCommand(
@@ -54,13 +59,18 @@ public sealed class CreatePokemonSpeciesCommandHandlerTests
         Assert.Contains("name", exception.Errors.Keys);
         Assert.Contains("types", exception.Errors.Keys);
         Assert.Contains("baseStats.health", exception.Errors.Keys);
+        await repository.DidNotReceive().AddAsync(Arg.Any<PokemonSpecies>(), Arg.Any<CancellationToken>());
+        await unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Handle_Should_Reject_Duplicate_Name()
     {
-        var repository = new FakePokemonSpeciesWriteRepository(existsByName: true);
-        var handler = new CreatePokemonSpeciesCommandHandler(repository, new FakeUnitOfWork());
+        var repository = Substitute.For<IPokemonSpeciesWriteRepository>();
+        repository.ExistsByNormalizedNameAsync("PIKACHU", Arg.Any<CancellationToken>()).Returns(true);
+
+        var unitOfWork = Substitute.For<IUnitOfWork>();
+        var handler = new CreatePokemonSpeciesCommandHandler(repository, unitOfWork);
 
         var exception = await Assert.ThrowsAsync<ApplicationConflictException>(() => handler.Handle(
             new CreatePokemonSpeciesCommand(
@@ -75,30 +85,7 @@ public sealed class CreatePokemonSpeciesCommandHandlerTests
             CancellationToken.None));
 
         Assert.Equal("name", exception.Target);
-    }
-
-    private sealed class FakePokemonSpeciesWriteRepository(bool existsByName = false) : IPokemonSpeciesWriteRepository
-    {
-        public List<PokemonSpecies> AddedSpecies { get; } = [];
-
-        public Task AddAsync(PokemonSpecies pokemonSpecies, CancellationToken cancellationToken)
-        {
-            AddedSpecies.Add(pokemonSpecies);
-            return Task.CompletedTask;
-        }
-
-        public Task<bool> ExistsByNormalizedNameAsync(string normalizedName, CancellationToken cancellationToken) =>
-            Task.FromResult(existsByName);
-    }
-
-    private sealed class FakeUnitOfWork : IUnitOfWork
-    {
-        public bool SaveChangesCalled { get; private set; }
-
-        public Task SaveChangesAsync(CancellationToken cancellationToken)
-        {
-            SaveChangesCalled = true;
-            return Task.CompletedTask;
-        }
+        await repository.DidNotReceive().AddAsync(Arg.Any<PokemonSpecies>(), Arg.Any<CancellationToken>());
+        await unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 }

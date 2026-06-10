@@ -4,15 +4,15 @@ using Visiotech.Pokemon.Application.Common.Exceptions;
 using Visiotech.Pokemon.Application.Common.Models;
 using Visiotech.Pokemon.Application.Features.Pokemons.Queries;
 
-namespace Visiotech.Pokemon.Application.Features.Pokemons.Commands.CreatePokemonSpecies;
+namespace Visiotech.Pokemon.Application.Features.Pokemons.Commands.UpdatePokemonSpecies;
 
-public sealed class CreatePokemonSpeciesCommandHandler(
+public sealed class UpdatePokemonSpeciesCommandHandler(
     IPokemonSpeciesWriteRepository repository,
     IUnitOfWork unitOfWork)
-    : ICommandHandler<CreatePokemonSpeciesCommand, PokemonSpeciesResponse>
+    : ICommandHandler<UpdatePokemonSpeciesCommand, PokemonSpeciesResponse>
 {
     public async Task<PokemonSpeciesResponse> Handle(
-        CreatePokemonSpeciesCommand command,
+        UpdatePokemonSpeciesCommand command,
         CancellationToken cancellationToken)
     {
         var errors = PokemonSpeciesCommandValidator.Validate(
@@ -30,6 +30,14 @@ public sealed class CreatePokemonSpeciesCommandHandler(
             throw new ApplicationValidationException(errors);
         }
 
+        var pokemonSpecies = await repository.GetForUpdateAsync(command.Id, cancellationToken);
+        if (pokemonSpecies is null)
+        {
+            throw new ApplicationNotFoundException(
+                $"Pokemon species '{command.Id}' was not found.",
+                "id");
+        }
+
         var input = PokemonSpeciesCommandValidator.BuildInput(
             command.Name!,
             command.Types!,
@@ -40,19 +48,17 @@ public sealed class CreatePokemonSpeciesCommandHandler(
             command.SpecialDefense,
             command.Speed);
 
-        if (await repository.ExistsByNormalizedNameAsync(input.Name.NormalizedValue, cancellationToken))
+        if (await repository.ExistsByNormalizedNameAsync(input.Name.NormalizedValue, pokemonSpecies.Id, cancellationToken))
         {
             throw new ApplicationConflictException(
                 $"Pokemon species '{input.Name.Value}' already exists.",
                 "name");
         }
 
-        var pokemonSpecies = global::Visiotech.Pokemon.Domain.Pokemons.PokemonSpecies.Create(
-            Guid.NewGuid(),
-            input.Name,
-            input.Typing,
-            input.BaseStats);
-        await repository.AddAsync(pokemonSpecies, cancellationToken);
+        pokemonSpecies.Rename(input.Name);
+        pokemonSpecies.ReconfigureTyping(input.Typing);
+        pokemonSpecies.ReconfigureBaseStats(input.BaseStats);
+
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return PokemonSpeciesMapping.ToResponse(pokemonSpecies);
