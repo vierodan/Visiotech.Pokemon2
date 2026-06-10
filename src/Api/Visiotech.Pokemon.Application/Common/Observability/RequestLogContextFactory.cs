@@ -1,5 +1,7 @@
 using Visiotech.Pokemon.Application.Common.Models;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Commands.CreateMyPokemon;
+using Visiotech.Pokemon.Application.Features.MyPokemons.Queries.GetMyPokemonDetail;
+using Visiotech.Pokemon.Application.Features.MyPokemons.Queries.GetMyPokemonsCatalog;
 using Visiotech.Pokemon.Application.Features.Moves.Commands.CreatePokemonMove;
 using Visiotech.Pokemon.Application.Features.Moves.Commands.DeletePokemonMove;
 using Visiotech.Pokemon.Application.Features.Moves.Commands.UpdatePokemonMove;
@@ -78,6 +80,15 @@ internal static class RequestLogContextFactory
                 command.CurrentHealthPoints,
                 command.TotalHealthPoints,
                 command.EquippedMoveIds
+            },
+            GetMyPokemonsCatalogQuery query => new
+            {
+                query.Page,
+                query.PageSize
+            },
+            GetMyPokemonDetailQuery query => new
+            {
+                query.Id
             },
             UpdatePokemonSpeciesCommand command => new
             {
@@ -177,6 +188,13 @@ internal static class RequestLogContextFactory
                 EquippedMoveCount = myPokemon.EquippedMoves.Count,
                 myPokemon.CurrentHealthPoints,
                 myPokemon.TotalHealthPoints
+            },
+            MyPokemonCatalogResponse catalog => new
+            {
+                catalog.Page,
+                catalog.PageSize,
+                catalog.TotalCount,
+                ItemCount = catalog.Items.Count
             },
             PokemonSpeciesCatalogResponse catalog => new
             {

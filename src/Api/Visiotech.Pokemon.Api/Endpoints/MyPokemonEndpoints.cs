@@ -6,6 +6,8 @@ using Visiotech.Pokemon.Api.Contracts;
 using Visiotech.Pokemon.Application.Abstractions.Messaging;
 using Visiotech.Pokemon.Application.Common.Models;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Commands.CreateMyPokemon;
+using Visiotech.Pokemon.Application.Features.MyPokemons.Queries.GetMyPokemonDetail;
+using Visiotech.Pokemon.Application.Features.MyPokemons.Queries.GetMyPokemonsCatalog;
 using Visiotech.Pokemon.Contracts;
 
 namespace Visiotech.Pokemon.Api;
@@ -19,6 +21,18 @@ public static class MyPokemonEndpoints
             .WithSummary("Creates a playable pokemon instance based on a base species.")
             .Produces<MyPokemonContract>(StatusCodes.Status201Created)
             .ProducesValidationProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        endpoints.MapGet("/api/v1/my-pokemons", GetMyPokemonsCatalogAsync)
+            .WithName("GetMyPokemonsCatalog")
+            .WithSummary("Returns the playable pokemon instances registered in the API.")
+            .Produces<MyPokemonCatalogContract>(StatusCodes.Status200OK)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest);
+
+        endpoints.MapGet("/api/v1/my-pokemons/{id:guid}", GetMyPokemonDetailAsync)
+            .WithName("GetMyPokemonDetail")
+            .WithSummary("Returns the detail of a playable pokemon instance.")
+            .Produces<MyPokemonContract>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         return endpoints;
@@ -39,5 +53,27 @@ public static class MyPokemonEndpoints
             cancellationToken);
 
         return TypedResults.Created($"/api/v1/my-pokemons/{response.Id}", response.ToContract());
+    }
+
+    private static async Task<Ok<MyPokemonCatalogContract>> GetMyPokemonsCatalogAsync(
+        int? page,
+        int? pageSize,
+        IQueryHandler<GetMyPokemonsCatalogQuery, MyPokemonCatalogResponse> handler,
+        CancellationToken cancellationToken)
+    {
+        var response = await handler.Handle(
+            new GetMyPokemonsCatalogQuery(page ?? 1, pageSize ?? 20),
+            cancellationToken);
+
+        return TypedResults.Ok(response.ToContract());
+    }
+
+    private static async Task<Ok<MyPokemonContract>> GetMyPokemonDetailAsync(
+        Guid id,
+        IQueryHandler<GetMyPokemonDetailQuery, MyPokemonResponse> handler,
+        CancellationToken cancellationToken)
+    {
+        var response = await handler.Handle(new GetMyPokemonDetailQuery(id), cancellationToken);
+        return TypedResults.Ok(response.ToContract());
     }
 }

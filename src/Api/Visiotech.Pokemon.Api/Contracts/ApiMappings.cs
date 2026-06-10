@@ -31,6 +31,14 @@ public static class ApiMappings
             response.TotalHealthPoints,
             response.EquippedMoves.Select(item => item.ToContract()).ToArray());
 
+    public static MyPokemonCatalogContract ToContract(this MyPokemonCatalogResponse response) =>
+        new(
+            response.Items.Select(item => item.ToContract()).ToArray(),
+            response.Page,
+            response.PageSize,
+            response.TotalCount,
+            response.TotalPages);
+
     public static PokemonMoveContract ToContract(this PokemonMoveResponse response) =>
         new(
             response.Id,

@@ -9,6 +9,8 @@ public interface IPokemonSpeciesReadRepository
 
     Task<PokemonSpecies?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
+    Task<IReadOnlyCollection<PokemonSpecies>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);
+
     Task<PokemonSpecies?> GetByIdWithLearnableMovesAsync(Guid id, CancellationToken cancellationToken);
 
     Task<IReadOnlyCollection<PokemonSpecies>> GetByLearnableMoveIdAsync(Guid moveId, CancellationToken cancellationToken);

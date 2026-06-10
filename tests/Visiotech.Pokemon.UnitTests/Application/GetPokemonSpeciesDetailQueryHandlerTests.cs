@@ -43,6 +43,11 @@ public sealed class GetPokemonSpeciesDetailQueryHandlerTests
         public Task<PokemonSpecies?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
             Task.FromResult(species);
 
+        public Task<IReadOnlyCollection<PokemonSpecies>> GetByIdsAsync(
+            IReadOnlyCollection<Guid> ids,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyCollection<PokemonSpecies>>(species is not null && ids.Contains(species.Id) ? [species] : []);
+
         public Task<PokemonSpecies?> GetByIdWithLearnableMovesAsync(Guid id, CancellationToken cancellationToken) =>
             Task.FromResult(species);
 
