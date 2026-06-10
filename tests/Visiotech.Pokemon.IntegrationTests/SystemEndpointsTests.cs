@@ -1,6 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Visiotech.Pokemon.Application.Abstractions.Persistence;
 using Visiotech.Pokemon.Contracts;
 using Visiotech.Pokemon.Infrastructure.Persistence;
 
@@ -239,6 +242,74 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
     }
 
     [Fact]
+    public async Task DeletePokemonSpecies_Should_Remove_Species_And_Keep_Mvp_Roster_Coherent()
+    {
+        foreach (var pokemonSpecies in PokemonMvpRosterSeed.GetSpecies())
+        {
+            var createResponse = await _client.PostAsJsonAsync(
+                "/api/v1/pokemons",
+                new CreatePokemonSpeciesRequestContract(
+                    pokemonSpecies.Name.Value,
+                    pokemonSpecies.Types.Select(type => type.ToString()).ToArray(),
+                    new PokemonBaseStatsContract(
+                        pokemonSpecies.BaseStats.Health,
+                        pokemonSpecies.BaseStats.Attack,
+                        pokemonSpecies.BaseStats.Defense,
+                        pokemonSpecies.BaseStats.SpecialAttack,
+                        pokemonSpecies.BaseStats.SpecialDefense,
+                        pokemonSpecies.BaseStats.Speed)));
+
+            Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        }
+
+        var beforeDeleteResponse = await _client.GetAsync("/api/v1/pokemons?page=1&pageSize=20");
+        var beforeDeletePayload = await beforeDeleteResponse.Content.ReadFromJsonAsync<PokemonSpeciesCatalogContract>();
+        Assert.NotNull(beforeDeletePayload);
+
+        var charizard = Assert.Single(beforeDeletePayload.Items, item => item.Name == "Charizard");
+
+        var deleteResponse = await _client.DeleteAsync($"/api/v1/pokemons/{charizard.Id}");
+
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+
+        var listResponse = await _client.GetAsync("/api/v1/pokemons?page=1&pageSize=20");
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+
+        var listPayload = await listResponse.Content.ReadFromJsonAsync<PokemonSpeciesCatalogContract>();
+        Assert.NotNull(listPayload);
+        Assert.Equal(9, listPayload.TotalCount);
+        Assert.DoesNotContain(listPayload.Items, item => item.Id == charizard.Id);
+        Assert.Contains(listPayload.Items, item => item.Name == "Blastoise");
+
+        var detailResponse = await _client.GetAsync($"/api/v1/pokemons/{charizard.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, detailResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeletePokemonSpecies_Should_Return_Validation_Problem_When_Dependencies_Exist()
+    {
+        var species = await CreateSpeciesAsync("Venusaur", ["Grass", "Poison"], 80, 82, 83, 100, 100, 80);
+
+        using var blockingClient = CreateClientWithDeletionDependencies(
+            "Pokemon species cannot be deleted because it is referenced by 'MyPokemon'.");
+
+        var response = await blockingClient.DeleteAsync($"/api/v1/pokemons/{species.Id}");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        await using var responseStream = await response.Content.ReadAsStreamAsync();
+        using var payload = await JsonDocument.ParseAsync(responseStream);
+        Assert.True(payload.RootElement.TryGetProperty("errors", out var errors));
+        Assert.True(errors.TryGetProperty("dependencies", out var dependencyErrors));
+        Assert.Contains(
+            dependencyErrors.EnumerateArray().Select(static item => item.GetString()),
+            message => message == "Pokemon species cannot be deleted because it is referenced by 'MyPokemon'.");
+
+        var detailResponse = await _client.GetAsync($"/api/v1/pokemons/{species.Id}");
+        Assert.Equal(HttpStatusCode.OK, detailResponse.StatusCode);
+    }
+
+    [Fact]
     public async Task GetPokemonSpeciesDetail_Should_Return_NotFound_When_Species_Does_Not_Exist()
     {
         var response = await _client.GetAsync($"/api/v1/pokemons/{Guid.NewGuid()}");
@@ -305,5 +376,24 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         var payload = await response.Content.ReadFromJsonAsync<PokemonSpeciesContract>();
         Assert.NotNull(payload);
         return payload;
+    }
+
+    private HttpClient CreateClientWithDeletionDependencies(params string[] blockingReasons) =>
+        _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IPokemonSpeciesDeletionDependencyChecker>();
+                services.AddScoped<IPokemonSpeciesDeletionDependencyChecker>(
+                    _ => new StubPokemonSpeciesDeletionDependencyChecker(blockingReasons));
+            }))
+            .CreateClient();
+
+    private sealed class StubPokemonSpeciesDeletionDependencyChecker(IReadOnlyCollection<string> blockingReasons)
+        : IPokemonSpeciesDeletionDependencyChecker
+    {
+        public Task<IReadOnlyCollection<string>> GetBlockingReasonsAsync(
+            Guid pokemonSpeciesId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(blockingReasons);
     }
 }

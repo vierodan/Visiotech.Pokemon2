@@ -11,4 +11,6 @@ public interface IPokemonSpeciesWriteRepository
     Task<bool> ExistsByNormalizedNameAsync(string normalizedName, Guid excludedId, CancellationToken cancellationToken);
 
     Task<PokemonSpecies?> GetForUpdateAsync(Guid id, CancellationToken cancellationToken);
+
+    void Remove(PokemonSpecies pokemonSpecies);
 }

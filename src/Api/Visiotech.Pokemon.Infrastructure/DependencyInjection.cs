@@ -41,6 +41,7 @@ public static class DependencyInjection
 
         services.AddScoped<IPokemonSpeciesReadRepository, PokemonSpeciesRepository>();
         services.AddScoped<IPokemonSpeciesWriteRepository, PokemonSpeciesRepository>();
+        services.AddScoped<IPokemonSpeciesDeletionDependencyChecker, PokemonSpeciesDeletionDependencyChecker>();
         services.AddScoped<IUnitOfWork, EntityFrameworkUnitOfWork>();
         services.AddSingleton<DatabaseInitializer>();
 

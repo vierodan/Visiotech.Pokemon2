@@ -6,6 +6,7 @@ using Visiotech.Pokemon.Api.Contracts;
 using Visiotech.Pokemon.Application.Abstractions.Messaging;
 using Visiotech.Pokemon.Application.Common.Models;
 using Visiotech.Pokemon.Application.Features.Pokemons.Commands.CreatePokemonSpecies;
+using Visiotech.Pokemon.Application.Features.Pokemons.Commands.DeletePokemonSpecies;
 using Visiotech.Pokemon.Application.Features.Pokemons.Commands.UpdatePokemonSpecies;
 using Visiotech.Pokemon.Application.Features.Pokemons.Queries.GetPokemonSpeciesDetail;
 using Visiotech.Pokemon.Application.Features.Pokemons.Queries.GetPokemonsCatalog;
@@ -31,6 +32,13 @@ public static class PokemonEndpoints
             .ProducesValidationProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
+
+        endpoints.MapDelete("/api/v1/pokemons/{id:guid}", DeletePokemonSpeciesAsync)
+            .WithName("DeletePokemonSpecies")
+            .WithSummary("Deletes a base pokemon species from the catalog when it has no active dependencies.")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         endpoints.MapGet("/api/v1/pokemons", GetPokemonsCatalogAsync)
             .WithName("GetPokemonsCatalog")
@@ -89,6 +97,15 @@ public static class PokemonEndpoints
             cancellationToken);
 
         return TypedResults.Ok(response.ToContract());
+    }
+
+    private static async Task<NoContent> DeletePokemonSpeciesAsync(
+        Guid id,
+        ICommandHandler<DeletePokemonSpeciesCommand, Guid> handler,
+        CancellationToken cancellationToken)
+    {
+        await handler.Handle(new DeletePokemonSpeciesCommand(id), cancellationToken);
+        return TypedResults.NoContent();
     }
 
     private static async Task<Ok<PokemonSpeciesCatalogContract>> GetPokemonsCatalogAsync(
