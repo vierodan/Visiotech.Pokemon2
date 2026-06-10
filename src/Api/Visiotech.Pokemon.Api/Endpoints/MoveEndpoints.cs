@@ -6,6 +6,7 @@ using Visiotech.Pokemon.Api.Contracts;
 using Visiotech.Pokemon.Application.Abstractions.Messaging;
 using Visiotech.Pokemon.Application.Common.Models;
 using Visiotech.Pokemon.Application.Features.Moves.Commands.CreatePokemonMove;
+using Visiotech.Pokemon.Application.Features.Moves.Commands.DeletePokemonMove;
 using Visiotech.Pokemon.Application.Features.Moves.Commands.UpdatePokemonMove;
 using Visiotech.Pokemon.Application.Features.Moves.Queries.GetPokemonMoveDetail;
 using Visiotech.Pokemon.Application.Features.Moves.Queries.GetPokemonMovesCatalog;
@@ -31,6 +32,13 @@ public static class MoveEndpoints
             .ProducesValidationProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
+
+        endpoints.MapDelete("/api/v1/moves/{id:guid}", DeletePokemonMoveAsync)
+            .WithName("DeletePokemonMove")
+            .WithSummary("Deletes a move from the catalog when it has no active dependencies.")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         endpoints.MapGet("/api/v1/moves", GetPokemonMovesCatalogAsync)
             .WithName("GetPokemonMovesCatalog")
@@ -79,6 +87,15 @@ public static class MoveEndpoints
             cancellationToken);
 
         return TypedResults.Ok(response.ToContract());
+    }
+
+    private static async Task<NoContent> DeletePokemonMoveAsync(
+        Guid id,
+        ICommandHandler<DeletePokemonMoveCommand, Guid> handler,
+        CancellationToken cancellationToken)
+    {
+        await handler.Handle(new DeletePokemonMoveCommand(id), cancellationToken);
+        return TypedResults.NoContent();
     }
 
     private static async Task<Ok<PokemonMoveCatalogContract>> GetPokemonMovesCatalogAsync(

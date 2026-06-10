@@ -3,6 +3,7 @@ using Visiotech.Pokemon.Application.Abstractions.Messaging;
 using Visiotech.Pokemon.Application.Common.Models;
 using Visiotech.Pokemon.Application.Common.Observability;
 using Visiotech.Pokemon.Application.Features.Moves.Commands.CreatePokemonMove;
+using Visiotech.Pokemon.Application.Features.Moves.Commands.DeletePokemonMove;
 using Visiotech.Pokemon.Application.Features.Moves.Commands.UpdatePokemonMove;
 using Visiotech.Pokemon.Application.Features.Moves.Queries.GetPokemonMoveDetail;
 using Visiotech.Pokemon.Application.Features.Moves.Queries.GetPokemonMovesCatalog;
@@ -25,6 +26,7 @@ public static class DependencyInjection
         AddLoggedQueryHandler<GetPokemonsCatalogQuery, PokemonSpeciesCatalogResponse, GetPokemonsCatalogQueryHandler>(services);
         AddLoggedQueryHandler<GetPokemonSpeciesDetailQuery, PokemonSpeciesResponse, GetPokemonSpeciesDetailQueryHandler>(services);
         AddLoggedCommandHandler<CreatePokemonMoveCommand, PokemonMoveResponse, CreatePokemonMoveCommandHandler>(services);
+        AddLoggedCommandHandler<DeletePokemonMoveCommand, Guid, DeletePokemonMoveCommandHandler>(services);
         AddLoggedCommandHandler<UpdatePokemonMoveCommand, PokemonMoveResponse, UpdatePokemonMoveCommandHandler>(services);
         AddLoggedCommandHandler<CreatePokemonSpeciesCommand, PokemonSpeciesResponse, CreatePokemonSpeciesCommandHandler>(services);
         AddLoggedCommandHandler<DeletePokemonSpeciesCommand, Guid, DeletePokemonSpeciesCommandHandler>(services);

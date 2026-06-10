@@ -11,6 +11,8 @@ public sealed class PokemonMoveRepository(PokemonDbContext dbContext)
     public async Task AddAsync(PokemonMove pokemonMove, CancellationToken cancellationToken) =>
         await dbContext.PokemonMoves.AddAsync(pokemonMove, cancellationToken);
 
+    public void Remove(PokemonMove pokemonMove) => dbContext.PokemonMoves.Remove(pokemonMove);
+
     public Task<bool> ExistsByNormalizedNameAsync(string normalizedName, CancellationToken cancellationToken) =>
         dbContext.PokemonMoves.AnyAsync(
             pokemonMove => pokemonMove.NormalizedName == normalizedName,

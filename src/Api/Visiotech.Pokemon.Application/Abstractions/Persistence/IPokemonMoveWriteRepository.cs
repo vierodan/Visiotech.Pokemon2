@@ -11,4 +11,6 @@ public interface IPokemonMoveWriteRepository
     Task<bool> ExistsByNormalizedNameAsync(string normalizedName, Guid excludedId, CancellationToken cancellationToken);
 
     Task<PokemonMove?> GetForUpdateAsync(Guid id, CancellationToken cancellationToken);
+
+    void Remove(PokemonMove pokemonMove);
 }

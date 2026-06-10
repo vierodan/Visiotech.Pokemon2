@@ -265,6 +265,69 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
     }
 
     [Fact]
+    public async Task DeletePokemonMove_Should_Remove_Move_And_Keep_Curated_Catalog_Coherent()
+    {
+        foreach (var pokemonMove in PokemonMvpMoveSeed.GetMoves())
+        {
+            var createResponse = await _client.PostAsJsonAsync(
+                "/api/v1/moves",
+                new CreatePokemonMoveRequestContract(
+                    pokemonMove.Name.Value,
+                    pokemonMove.Type.ToString(),
+                    pokemonMove.Category.ToString(),
+                    pokemonMove.Power));
+
+            Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        }
+
+        var beforeDeleteResponse = await _client.GetAsync("/api/v1/moves?page=1&pageSize=50");
+        var beforeDeletePayload = await beforeDeleteResponse.Content.ReadFromJsonAsync<PokemonMoveCatalogContract>();
+        Assert.NotNull(beforeDeletePayload);
+
+        var protect = Assert.Single(beforeDeletePayload.Items, item => item.Name == "Protect");
+
+        var deleteResponse = await _client.DeleteAsync($"/api/v1/moves/{protect.Id}");
+
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+
+        var listResponse = await _client.GetAsync("/api/v1/moves?page=1&pageSize=50");
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+
+        var listPayload = await listResponse.Content.ReadFromJsonAsync<PokemonMoveCatalogContract>();
+        Assert.NotNull(listPayload);
+        Assert.Equal(26, listPayload.TotalCount);
+        Assert.DoesNotContain(listPayload.Items, item => item.Id == protect.Id);
+        Assert.Contains(listPayload.Items, item => item.Name == "Surf");
+
+        var detailResponse = await _client.GetAsync($"/api/v1/moves/{protect.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, detailResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeletePokemonMove_Should_Return_Validation_Problem_When_Dependencies_Exist()
+    {
+        var move = await CreateMoveAsync("Protect", "Normal", "Status", 0);
+
+        using var blockingClient = CreateClientWithMoveDeletionDependencies(
+            "Pokemon move cannot be deleted because it is referenced by 'MyPokemonMoveSlot'.");
+
+        var response = await blockingClient.DeleteAsync($"/api/v1/moves/{move.Id}");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        await using var responseStream = await response.Content.ReadAsStreamAsync();
+        using var payload = await JsonDocument.ParseAsync(responseStream);
+        Assert.True(payload.RootElement.TryGetProperty("errors", out var errors));
+        Assert.True(errors.TryGetProperty("dependencies", out var dependencyErrors));
+        Assert.Contains(
+            dependencyErrors.EnumerateArray().Select(static item => item.GetString()),
+            message => message == "Pokemon move cannot be deleted because it is referenced by 'MyPokemonMoveSlot'.");
+
+        var detailResponse = await _client.GetAsync($"/api/v1/moves/{move.Id}");
+        Assert.Equal(HttpStatusCode.OK, detailResponse.StatusCode);
+    }
+
+    [Fact]
     public async Task GetPokemonsCatalog_Should_List_And_Get_Detail_After_Creating_Mvp_Roster()
     {
         foreach (var pokemonSpecies in PokemonMvpRosterSeed.GetSpecies())
@@ -661,11 +724,30 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
             }))
             .CreateClient();
 
+    private HttpClient CreateClientWithMoveDeletionDependencies(params string[] blockingReasons) =>
+        _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IPokemonMoveDeletionDependencyChecker>();
+                services.AddScoped<IPokemonMoveDeletionDependencyChecker>(
+                    _ => new StubPokemonMoveDeletionDependencyChecker(blockingReasons));
+            }))
+            .CreateClient();
+
     private sealed class StubPokemonSpeciesDeletionDependencyChecker(IReadOnlyCollection<string> blockingReasons)
         : IPokemonSpeciesDeletionDependencyChecker
     {
         public Task<IReadOnlyCollection<string>> GetBlockingReasonsAsync(
             Guid pokemonSpeciesId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(blockingReasons);
+    }
+
+    private sealed class StubPokemonMoveDeletionDependencyChecker(IReadOnlyCollection<string> blockingReasons)
+        : IPokemonMoveDeletionDependencyChecker
+    {
+        public Task<IReadOnlyCollection<string>> GetBlockingReasonsAsync(
+            Guid pokemonMoveId,
             CancellationToken cancellationToken) =>
             Task.FromResult(blockingReasons);
     }

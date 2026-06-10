@@ -1,5 +1,6 @@
 using Visiotech.Pokemon.Application.Common.Models;
 using Visiotech.Pokemon.Application.Features.Moves.Commands.CreatePokemonMove;
+using Visiotech.Pokemon.Application.Features.Moves.Commands.DeletePokemonMove;
 using Visiotech.Pokemon.Application.Features.Moves.Commands.UpdatePokemonMove;
 using Visiotech.Pokemon.Application.Features.Moves.Queries.GetPokemonMoveDetail;
 using Visiotech.Pokemon.Application.Features.Moves.Queries.GetPokemonMovesCatalog;
@@ -31,6 +32,10 @@ internal static class RequestLogContextFactory
                 command.Type,
                 command.Category,
                 command.Power
+            },
+            DeletePokemonMoveCommand command => new
+            {
+                command.Id
             },
             GetPokemonMoveDetailQuery query => new
             {
