@@ -35,6 +35,8 @@ Antes de usar cualquiera de los prompts de este fichero, la IA debe asumir este 
 - la API no debe permitir equipar movimientos no aprendibles
 - la API no debe permitir acciones de combate sobre partidas finalizadas
 - toda implementación debe incluir pruebas automatizadas del comportamiento nuevo o modificado
+- cuando una prueba requiera mockeo o verificación de colaboración entre dependencias, debe usarse obligatoriamente `NSubstitute`; no se permite `Moq`
+- no debe introducirse mockeo innecesario en pruebas de dominio, arquitectura o integración de extremo a extremo; en esos casos deben preferirse pruebas reales o dobles simples solo cuando aporten claridad
 - la IA debe inspeccionar primero el código existente y adaptarse a su arquitectura, estilo y stack sin vulnerar `Clean Architecture`, `SOLID` ni las mejores prácticas de software
 
 ### 2.1 Barra de calidad obligatoria para todos los prompts

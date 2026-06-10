@@ -6,6 +6,7 @@ using Visiotech.Pokemon.Api.Contracts;
 using Visiotech.Pokemon.Application.Abstractions.Messaging;
 using Visiotech.Pokemon.Application.Common.Models;
 using Visiotech.Pokemon.Application.Features.Pokemons.Commands.CreatePokemonSpecies;
+using Visiotech.Pokemon.Application.Features.Pokemons.Queries.GetPokemonSpeciesDetail;
 using Visiotech.Pokemon.Application.Features.Pokemons.Queries.GetPokemonsCatalog;
 using Visiotech.Pokemon.Contracts;
 
@@ -25,7 +26,14 @@ public static class PokemonEndpoints
         endpoints.MapGet("/api/v1/pokemons", GetPokemonsCatalogAsync)
             .WithName("GetPokemonsCatalog")
             .WithSummary("Returns the base pokemon species catalog exposed by the API.")
-            .Produces<IReadOnlyCollection<PokemonSpeciesContract>>(StatusCodes.Status200OK);
+            .Produces<PokemonSpeciesCatalogContract>(StatusCodes.Status200OK)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest);
+
+        endpoints.MapGet("/api/v1/pokemons/{id:guid}", GetPokemonSpeciesDetailAsync)
+            .WithName("GetPokemonSpeciesDetail")
+            .WithSummary("Returns the detail of a base pokemon species.")
+            .Produces<PokemonSpeciesContract>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         return endpoints;
     }
@@ -51,11 +59,27 @@ public static class PokemonEndpoints
         return TypedResults.Created($"/api/v1/pokemons/{response.Id}", response.ToContract());
     }
 
-    private static async Task<Ok<PokemonSpeciesContract[]>> GetPokemonsCatalogAsync(
-        IQueryHandler<GetPokemonsCatalogQuery, IReadOnlyCollection<PokemonSpeciesResponse>> handler,
+    private static async Task<Ok<PokemonSpeciesCatalogContract>> GetPokemonsCatalogAsync(
+        string? name,
+        string? type,
+        int? page,
+        int? pageSize,
+        IQueryHandler<GetPokemonsCatalogQuery, PokemonSpeciesCatalogResponse> handler,
         CancellationToken cancellationToken)
     {
-        var response = await handler.Handle(new GetPokemonsCatalogQuery(), cancellationToken);
-        return TypedResults.Ok(response.Select(item => item.ToContract()).ToArray());
+        var response = await handler.Handle(
+            new GetPokemonsCatalogQuery(name, type, page ?? 1, pageSize ?? 20),
+            cancellationToken);
+
+        return TypedResults.Ok(response.ToContract());
+    }
+
+    private static async Task<Ok<PokemonSpeciesContract>> GetPokemonSpeciesDetailAsync(
+        Guid id,
+        IQueryHandler<GetPokemonSpeciesDetailQuery, PokemonSpeciesResponse> handler,
+        CancellationToken cancellationToken)
+    {
+        var response = await handler.Handle(new GetPokemonSpeciesDetailQuery(id), cancellationToken);
+        return TypedResults.Ok(response.ToContract());
     }
 }
