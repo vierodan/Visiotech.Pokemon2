@@ -10,7 +10,7 @@ public partial class AddPokemonSpeciesLearnableMoves : Migration
     {
         migrationBuilder.CreateTable(
             name: "pokemon_species_learnable_moves",
-            schema: "catalog",
+            schema: "pokemon2",
             columns: table => new
             {
                 pokemon_species_id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -22,14 +22,14 @@ public partial class AddPokemonSpeciesLearnableMoves : Migration
                 table.ForeignKey(
                     name: "FK_pokemon_species_learnable_moves_pokemon_moves_pokemon_move_id",
                     column: x => x.pokemon_move_id,
-                    principalSchema: "catalog",
+                    principalSchema: "pokemon2",
                     principalTable: "pokemon_moves",
                     principalColumn: "Id",
                     onDelete: ReferentialAction.Restrict);
                 table.ForeignKey(
                     name: "FK_pokemon_species_learnable_moves_pokemon_species_pokemon_species_id",
                     column: x => x.pokemon_species_id,
-                    principalSchema: "catalog",
+                    principalSchema: "pokemon2",
                     principalTable: "pokemon_species",
                     principalColumn: "Id",
                     onDelete: ReferentialAction.Restrict);
@@ -37,7 +37,7 @@ public partial class AddPokemonSpeciesLearnableMoves : Migration
 
         migrationBuilder.CreateIndex(
             name: "IX_pokemon_species_learnable_moves_pokemon_move_id",
-            schema: "catalog",
+            schema: "pokemon2",
             table: "pokemon_species_learnable_moves",
             column: "pokemon_move_id");
     }
@@ -46,6 +46,6 @@ public partial class AddPokemonSpeciesLearnableMoves : Migration
     {
         migrationBuilder.DropTable(
             name: "pokemon_species_learnable_moves",
-            schema: "catalog");
+            schema: "pokemon2");
     }
 }

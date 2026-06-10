@@ -36,7 +36,9 @@ public static class DependencyInjection
                 return;
             }
 
-            options.UseNpgsql(connectionString);
+            options.UseNpgsql(
+                connectionString,
+                npgsqlOptions => npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "pokemon2"));
         });
 
         services.AddScoped<IPokemonSpeciesReadRepository, PokemonSpeciesRepository>();

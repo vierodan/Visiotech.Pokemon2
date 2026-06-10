@@ -11,7 +11,7 @@ public sealed class PokemonDbContext(DbContextOptions<PokemonDbContext> options)
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.HasDefaultSchema("catalog");
+        modelBuilder.HasDefaultSchema("pokemon2");
 
         modelBuilder.Entity<PokemonMove>(entity =>
         {

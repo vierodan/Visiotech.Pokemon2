@@ -23,6 +23,7 @@ Antes de usar cualquiera de los prompts de este fichero, la IA debe asumir este 
 - deben aplicarse obligatoriamente las mejores prácticas de software en código, validaciones, manejo de errores, pruebas, mantenibilidad, legibilidad, cohesión, bajo acoplamiento y evolución futura del sistema
 - la persistencia en infraestructura debe implementarse con `Entity Framework Core`, usando migraciones como mecanismo oficial de evolución del esquema
 - la base de datos objetivo es `PostgreSQL`, por lo que el modelado, mapeo, tipos de datos, constraints e índices deben pensarse para ese motor
+- todas las tablas, índices, constraints, claves foráneas, secuencias, histórico de migraciones y cualquier otro artefacto de base de datos del proyecto deben crearse obligatoriamente en el esquema `pokemon2`
 - debe incorporarse observabilidad al aplicativo como capacidad obligatoria y transversal
 - el logging debe implementarse obligatoriamente con `Serilog`
 - las trazas deben emitirse tanto a consola como a `Seq`

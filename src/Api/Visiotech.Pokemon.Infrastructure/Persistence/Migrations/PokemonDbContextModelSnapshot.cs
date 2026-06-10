@@ -13,7 +13,7 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
         modelBuilder
-            .HasDefaultSchema("catalog");
+            .HasDefaultSchema("pokemon2");
 
         modelBuilder.Entity("Visiotech.Pokemon.Domain.Pokemons.PokemonMove", b =>
         {
@@ -48,7 +48,7 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
             b.HasIndex("NormalizedName")
                 .IsUnique();
 
-            b.ToTable("pokemon_moves", "catalog", t =>
+            b.ToTable("pokemon_moves", "pokemon2", t =>
             {
                 t.HasCheckConstraint("ck_pokemon_moves_category", "\"category\" IN ('Physical', 'Special', 'Status')");
                 t.HasCheckConstraint("ck_pokemon_moves_power_by_category", "(\"category\" = 'Status' AND \"power\" = 0) OR (\"category\" IN ('Physical', 'Special') AND \"power\" > 0)");
@@ -69,7 +69,7 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
 
             b.HasIndex("PokemonMoveId");
 
-            b.ToTable("pokemon_species_learnable_moves", "catalog");
+            b.ToTable("pokemon_species_learnable_moves", "pokemon2");
         });
 
         modelBuilder.Entity("Visiotech.Pokemon.Domain.Pokemons.PokemonSpecies", b =>
@@ -89,7 +89,7 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
             b.HasIndex("NormalizedName")
                 .IsUnique();
 
-            b.ToTable("pokemon_species", "catalog", t =>
+            b.ToTable("pokemon_species", "pokemon2", t =>
             {
                 t.HasCheckConstraint("ck_pokemon_species_attack_positive", "\"attack\" > 0");
                 t.HasCheckConstraint("ck_pokemon_species_defense_positive", "\"defense\" > 0");
@@ -137,7 +137,7 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
 
                 b1.HasKey("PokemonMoveId");
 
-                b1.ToTable("pokemon_moves", "catalog");
+                b1.ToTable("pokemon_moves", "pokemon2");
 
                 b1.WithOwner()
                     .HasForeignKey("PokemonMoveId");
@@ -180,7 +180,7 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
 
                 b1.HasKey("PokemonSpeciesId");
 
-                b1.ToTable("pokemon_species", "catalog");
+                b1.ToTable("pokemon_species", "pokemon2");
 
                 b1.WithOwner()
                     .HasForeignKey("PokemonSpeciesId");
@@ -205,7 +205,7 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
 
                 b1.HasKey("PokemonSpeciesId");
 
-                b1.ToTable("pokemon_species", "catalog");
+                b1.ToTable("pokemon_species", "pokemon2");
 
                 b1.WithOwner()
                     .HasForeignKey("PokemonSpeciesId");
@@ -229,7 +229,7 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
 
                 b1.HasKey("PokemonSpeciesId");
 
-                b1.ToTable("pokemon_species", "catalog");
+                b1.ToTable("pokemon_species", "pokemon2");
 
                 b1.WithOwner()
                     .HasForeignKey("PokemonSpeciesId");

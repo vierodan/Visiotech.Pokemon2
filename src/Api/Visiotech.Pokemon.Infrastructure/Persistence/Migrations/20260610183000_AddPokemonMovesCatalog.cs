@@ -10,7 +10,7 @@ public partial class AddPokemonMovesCatalog : Migration
     {
         migrationBuilder.CreateTable(
             name: "pokemon_moves",
-            schema: "catalog",
+            schema: "pokemon2",
             columns: table => new
             {
                 Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -32,7 +32,7 @@ public partial class AddPokemonMovesCatalog : Migration
 
         migrationBuilder.CreateIndex(
             name: "IX_pokemon_moves_normalized_name",
-            schema: "catalog",
+            schema: "pokemon2",
             table: "pokemon_moves",
             column: "normalized_name",
             unique: true);
@@ -42,6 +42,6 @@ public partial class AddPokemonMovesCatalog : Migration
     {
         migrationBuilder.DropTable(
             name: "pokemon_moves",
-            schema: "catalog");
+            schema: "pokemon2");
     }
 }

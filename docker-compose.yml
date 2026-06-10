@@ -1,0 +1,35 @@
+services:
+  visiotech-postgres:
+    image: postgres:17
+    container_name: visiotech-pokemon-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DATABASE}
+      POSTGRES_USER: ${POSTGRES_USERNAME}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USERNAME} -d ${POSTGRES_DATABASE}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - visiotech
+
+  visiotech-seq:
+    image: datalust/seq:latest
+    container_name: visiotech-pokemon-seq
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      SEQ_FIRSTRUN_ADMINPASSWORD: ${SEQ_FIRSTRUN_ADMINPASSWORD:-ChangeMe123!}
+    ports:
+      - "${SEQ_PORT:-5341}:80"
+    networks:
+      - visiotech
+
+networks:
+  visiotech:
+    driver: bridge

@@ -9,11 +9,11 @@ public partial class InitialPokemonSpeciesCatalog : Migration
     protected override void Up(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.EnsureSchema(
-            name: "catalog");
+            name: "pokemon2");
 
         migrationBuilder.CreateTable(
             name: "pokemon_species",
-            schema: "catalog",
+            schema: "pokemon2",
             columns: table => new
             {
                 Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -43,7 +43,7 @@ public partial class InitialPokemonSpeciesCatalog : Migration
 
         migrationBuilder.CreateIndex(
             name: "IX_pokemon_species_normalized_name",
-            schema: "catalog",
+            schema: "pokemon2",
             table: "pokemon_species",
             column: "normalized_name",
             unique: true);
@@ -53,6 +53,6 @@ public partial class InitialPokemonSpeciesCatalog : Migration
     {
         migrationBuilder.DropTable(
             name: "pokemon_species",
-            schema: "catalog");
+            schema: "pokemon2");
     }
 }
