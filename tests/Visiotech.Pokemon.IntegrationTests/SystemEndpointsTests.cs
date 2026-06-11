@@ -804,6 +804,140 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
     }
 
     [Fact]
+    public async Task UpdateMyPokemon_Should_Reequip_Moves_And_Update_Battle_State_When_Request_Is_Valid()
+    {
+        var charizard = await CreateSpeciesAsync("Charizard", ["Fire", "Flying"], 78, 84, 78, 109, 85, 100);
+        var flamethrower = await CreateMoveAsync("Flamethrower", "Fire", "Special", 90);
+        var fly = await CreateMoveAsync("Fly", "Flying", "Physical", 90);
+        var airSlash = await CreateMoveAsync("Air Slash", "Flying", "Special", 75);
+        var protect = await CreateMoveAsync("Protect", "Normal", "Status", 0);
+
+        await AssociateLearnableMovesAsync(charizard.Id, flamethrower.Id, fly.Id, airSlash.Id, protect.Id);
+        var myPokemon = await CreateMyPokemonAsync(charizard.Id, 50, 120, 150, flamethrower.Id, fly.Id);
+        var payload = await UpdateMyPokemonAsync(
+            myPokemon.Id,
+            55,
+            140,
+            170,
+            airSlash.Id,
+            protect.Id,
+            flamethrower.Id,
+            fly.Id);
+
+        Assert.Equal(myPokemon.Id, payload.Id);
+        Assert.Equal(charizard.Id, payload.Species.Id);
+        Assert.Equal("Charizard", payload.Species.Name);
+        Assert.Equal(55, payload.Level);
+        Assert.Equal(140, payload.CurrentHealthPoints);
+        Assert.Equal(170, payload.TotalHealthPoints);
+        Assert.Collection(
+            payload.EquippedMoves,
+            move => Assert.Equal("Air Slash", move.Name),
+            move => Assert.Equal("Protect", move.Name),
+            move => Assert.Equal("Flamethrower", move.Name),
+            move => Assert.Equal("Fly", move.Name));
+
+        var speciesResponse = await _client.GetAsync($"/api/v1/pokemons/{charizard.Id}");
+        Assert.Equal(HttpStatusCode.OK, speciesResponse.StatusCode);
+
+        var speciesPayload = await speciesResponse.Content.ReadFromJsonAsync<PokemonSpeciesContract>();
+        Assert.NotNull(speciesPayload);
+        Assert.Equal("Charizard", speciesPayload.Name);
+        Assert.Equal(["Fire", "Flying"], speciesPayload.Types);
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PokemonDbContext>();
+
+        var storedMyPokemon = await dbContext.MyPokemons.SingleAsync(item => item.Id == myPokemon.Id);
+        Assert.Equal(55, storedMyPokemon.Level.Value);
+        Assert.Equal(140, storedMyPokemon.CurrentHealthPoints);
+        Assert.Equal(170, storedMyPokemon.TotalHealthPoints);
+
+        var storedSlots = await dbContext.MyPokemonMoveSlots
+            .Where(slot => slot.MyPokemonId == myPokemon.Id)
+            .OrderBy(slot => slot.SlotNumber)
+            .ToArrayAsync();
+
+        Assert.Equal(4, storedSlots.Length);
+        Assert.Equal(
+            [airSlash.Id, protect.Id, flamethrower.Id, fly.Id],
+            storedSlots.Select(slot => slot.PokemonMoveId).ToArray());
+    }
+
+    [Fact]
+    public async Task UpdateMyPokemon_Should_Return_NotFound_When_Instance_Does_Not_Exist()
+    {
+        var response = await _client.PutAsJsonAsync(
+            $"/api/v1/my-pokemons/{Guid.NewGuid()}",
+            new UpdateMyPokemonRequestContract(55, 140, 170, [Guid.NewGuid()]));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        await using var responseStream = await response.Content.ReadAsStreamAsync();
+        using var payload = await JsonDocument.ParseAsync(responseStream);
+        Assert.Equal("Not found", payload.RootElement.GetProperty("title").GetString());
+        Assert.Equal("id", payload.RootElement.GetProperty("target").GetString());
+    }
+
+    [Fact]
+    public async Task UpdateMyPokemon_Should_Return_Validation_Problem_For_NonLearnable_Move()
+    {
+        var blastoise = await CreateSpeciesAsync("Blastoise", ["Water"], 79, 83, 100, 85, 105, 78);
+        var surf = await CreateMoveAsync("Surf", "Water", "Special", 90);
+        var thunderbolt = await CreateMoveAsync("Thunderbolt", "Electric", "Special", 90);
+
+        await AssociateLearnableMovesAsync(blastoise.Id, surf.Id);
+        var myPokemon = await CreateMyPokemonAsync(blastoise.Id, 45, 110, 140, surf.Id);
+
+        var response = await _client.PutAsJsonAsync(
+            $"/api/v1/my-pokemons/{myPokemon.Id}",
+            new UpdateMyPokemonRequestContract(48, 115, 140, [surf.Id, thunderbolt.Id]));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        await using var responseStream = await response.Content.ReadAsStreamAsync();
+        using var payload = await JsonDocument.ParseAsync(responseStream);
+        Assert.True(payload.RootElement.TryGetProperty("errors", out var errors));
+        Assert.True(errors.TryGetProperty("equippedMoveIds", out var moveErrors));
+        Assert.Contains(
+            moveErrors.EnumerateArray().Select(static item => item.GetString()),
+            message => message?.Contains("not learnable", StringComparison.OrdinalIgnoreCase) == true);
+    }
+
+    [Fact]
+    public async Task UpdateMyPokemon_Should_Return_Validation_Problem_For_More_Than_Four_Moves()
+    {
+        var dragonite = await CreateSpeciesAsync("Dragonite", ["Dragon", "Flying"], 91, 134, 95, 100, 100, 80);
+        var moveIds = new List<Guid>();
+
+        foreach (var move in new[]
+                 {
+                     await CreateMoveAsync("Hyper Beam", "Normal", "Special", 150),
+                     await CreateMoveAsync("Earthquake", "Ground", "Physical", 100),
+                     await CreateMoveAsync("Air Slash", "Flying", "Special", 75),
+                     await CreateMoveAsync("Thunder Punch", "Electric", "Physical", 75),
+                     await CreateMoveAsync("Ice Punch", "Ice", "Physical", 75)
+                 })
+        {
+            moveIds.Add(move.Id);
+        }
+
+        await AssociateLearnableMovesAsync(dragonite.Id, moveIds.ToArray());
+        var myPokemon = await CreateMyPokemonAsync(dragonite.Id, 55, 140, 160, moveIds[0], moveIds[1], moveIds[2], moveIds[3]);
+
+        var response = await _client.PutAsJsonAsync(
+            $"/api/v1/my-pokemons/{myPokemon.Id}",
+            new UpdateMyPokemonRequestContract(56, 145, 165, moveIds));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        await using var responseStream = await response.Content.ReadAsStreamAsync();
+        using var payload = await JsonDocument.ParseAsync(responseStream);
+        Assert.True(payload.RootElement.TryGetProperty("errors", out var errors));
+        Assert.True(errors.TryGetProperty("equippedMoveIds", out _));
+    }
+
+    [Fact]
     public async Task GetPokemonsCatalog_Should_List_And_Get_Detail_After_Creating_Mvp_Roster()
     {
         foreach (var pokemonSpecies in PokemonMvpRosterSeed.GetSpecies())
@@ -1216,6 +1350,27 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
                 equippedMoveIds));
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<MyPokemonContract>();
+        Assert.NotNull(payload);
+        return payload;
+    }
+
+    private async Task<MyPokemonContract> UpdateMyPokemonAsync(
+        Guid myPokemonId,
+        int level,
+        int currentHealthPoints,
+        int totalHealthPoints,
+        params Guid[] equippedMoveIds)
+    {
+        var response = await _client.PutAsJsonAsync(
+            $"/api/v1/my-pokemons/{myPokemonId}",
+            new UpdateMyPokemonRequestContract(
+                level,
+                currentHealthPoints,
+                totalHealthPoints,
+                equippedMoveIds));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var payload = await response.Content.ReadFromJsonAsync<MyPokemonContract>();
         Assert.NotNull(payload);
         return payload;

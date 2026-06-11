@@ -19,6 +19,22 @@ public sealed class MyPokemonMoveSlot
     public int SlotNumber { get; private set; }
     public Guid PokemonMoveId { get; private set; }
 
+    public void Reassign(int slotNumber, Guid pokemonMoveId)
+    {
+        if (slotNumber is < 1 or > 4)
+        {
+            throw new DomainException("Move slot number must be between 1 and 4.");
+        }
+
+        if (pokemonMoveId == Guid.Empty)
+        {
+            throw new DomainException("Pokemon move id cannot be empty.");
+        }
+
+        SlotNumber = slotNumber;
+        PokemonMoveId = pokemonMoveId;
+    }
+
     public static MyPokemonMoveSlot Create(Guid myPokemonId, int slotNumber, Guid pokemonMoveId)
     {
         if (myPokemonId == Guid.Empty)

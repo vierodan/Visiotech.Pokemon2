@@ -69,4 +69,62 @@ public sealed class MyPokemonTests
         var exception = Assert.Throws<DomainException>(action);
         Assert.Contains("cannot exceed", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void Reconfigure_Should_Update_Level_Health_And_Equipped_Moves_When_Arguments_Are_Valid()
+    {
+        var firstMoveId = Guid.NewGuid();
+        var secondMoveId = Guid.NewGuid();
+        var thirdMoveId = Guid.NewGuid();
+        var fourthMoveId = Guid.NewGuid();
+
+        var myPokemon = MyPokemon.Create(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Level.Create(50),
+            120,
+            150,
+            [firstMoveId, secondMoveId]);
+
+        myPokemon.Reconfigure(
+            Level.Create(55),
+            140,
+            170,
+            [thirdMoveId, firstMoveId, fourthMoveId, secondMoveId]);
+
+        Assert.Equal(55, myPokemon.Level.Value);
+        Assert.Equal(140, myPokemon.CurrentHealthPoints);
+        Assert.Equal(170, myPokemon.TotalHealthPoints);
+        Assert.Equal([thirdMoveId, firstMoveId, fourthMoveId, secondMoveId], myPokemon.EquippedMoveIds);
+        Assert.Equal([1, 2, 3, 4], myPokemon.EquippedMoves.Select(slot => slot.SlotNumber).OrderBy(slot => slot).ToArray());
+    }
+
+    [Fact]
+    public void Reconfigure_Should_Not_Mutate_Existing_State_When_New_Move_Set_Is_Invalid()
+    {
+        var firstMoveId = Guid.NewGuid();
+        var secondMoveId = Guid.NewGuid();
+
+        var myPokemon = MyPokemon.Create(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Level.Create(50),
+            120,
+            150,
+            [firstMoveId, secondMoveId]);
+
+        var action = () => myPokemon.Reconfigure(
+            Level.Create(60),
+            130,
+            160,
+            [Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid()]);
+
+        var exception = Assert.Throws<DomainException>(action);
+
+        Assert.Contains("between 1 and 4", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(50, myPokemon.Level.Value);
+        Assert.Equal(120, myPokemon.CurrentHealthPoints);
+        Assert.Equal(150, myPokemon.TotalHealthPoints);
+        Assert.Equal([firstMoveId, secondMoveId], myPokemon.EquippedMoveIds);
+    }
 }

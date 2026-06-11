@@ -22,8 +22,7 @@ public sealed class MyPokemon : AggregateRoot<Guid>
     {
         PokemonSpeciesId = pokemonSpeciesId;
         Level = level;
-        RehydrateBattleState(currentHealthPoints, totalHealthPoints);
-        EquipMoves(equippedMoveIds);
+        Reconfigure(level, currentHealthPoints, totalHealthPoints, equippedMoveIds);
     }
 
     public Guid PokemonSpeciesId { get; private set; }
@@ -57,18 +56,22 @@ public sealed class MyPokemon : AggregateRoot<Guid>
         return new MyPokemon(id, pokemonSpeciesId, level, currentHealthPoints, totalHealthPoints, equippedMoveIds);
     }
 
-    public void UpdateBattleState(int currentHealthPoints, int totalHealthPoints) =>
-        RehydrateBattleState(currentHealthPoints, totalHealthPoints);
-
-    public void ReconfigureLevel(Level level) => Level = level;
-
-    public void ReplaceEquippedMoves(IReadOnlyCollection<Guid> equippedMoveIds)
+    public void Reconfigure(
+        Level level,
+        int currentHealthPoints,
+        int totalHealthPoints,
+        IReadOnlyCollection<Guid> equippedMoveIds)
     {
-        _equippedMoves.Clear();
-        EquipMoves(equippedMoveIds);
+        ValidateBattleState(currentHealthPoints, totalHealthPoints);
+        ValidateEquippedMoves(equippedMoveIds);
+
+        Level = level;
+        CurrentHealthPoints = currentHealthPoints;
+        TotalHealthPoints = totalHealthPoints;
+        ApplyEquippedMoves(equippedMoveIds);
     }
 
-    private void RehydrateBattleState(int currentHealthPoints, int totalHealthPoints)
+    private static void ValidateBattleState(int currentHealthPoints, int totalHealthPoints)
     {
         if (totalHealthPoints <= 0)
         {
@@ -85,11 +88,9 @@ public sealed class MyPokemon : AggregateRoot<Guid>
             throw new DomainException("Pokemon current health points cannot exceed total health points.");
         }
 
-        CurrentHealthPoints = currentHealthPoints;
-        TotalHealthPoints = totalHealthPoints;
     }
 
-    private void EquipMoves(IReadOnlyCollection<Guid> equippedMoveIds)
+    private static void ValidateEquippedMoves(IReadOnlyCollection<Guid> equippedMoveIds)
     {
         if (equippedMoveIds.Count is < 1 or > 4)
         {
@@ -105,12 +106,33 @@ public sealed class MyPokemon : AggregateRoot<Guid>
         {
             throw new DomainException("My pokemon cannot equip the same move more than once.");
         }
+    }
+
+    private void ApplyEquippedMoves(IReadOnlyCollection<Guid> equippedMoveIds)
+    {
+        var orderedExistingSlots = _equippedMoves
+            .OrderBy(slot => slot.SlotNumber)
+            .ToArray();
 
         var slotNumber = 1;
         foreach (var moveId in equippedMoveIds)
         {
-            _equippedMoves.Add(MyPokemonMoveSlot.Create(Id, slotNumber, moveId));
+            var slotIndex = slotNumber - 1;
+            if (slotIndex < orderedExistingSlots.Length)
+            {
+                orderedExistingSlots[slotIndex].Reassign(slotNumber, moveId);
+            }
+            else
+            {
+                _equippedMoves.Add(MyPokemonMoveSlot.Create(Id, slotNumber, moveId));
+            }
+
             slotNumber++;
+        }
+
+        foreach (var unusedSlot in orderedExistingSlots.Skip(equippedMoveIds.Count))
+        {
+            _equippedMoves.Remove(unusedSlot);
         }
     }
 }

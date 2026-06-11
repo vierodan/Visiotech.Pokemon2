@@ -10,6 +10,11 @@ public sealed class MyPokemonRepository(PokemonDbContext dbContext) : IMyPokemon
     public async Task AddAsync(MyPokemon myPokemon, CancellationToken cancellationToken) =>
         await dbContext.MyPokemons.AddAsync(myPokemon, cancellationToken);
 
+    public async Task<MyPokemon?> GetForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
+        await dbContext.MyPokemons
+            .Include(myPokemon => myPokemon.EquippedMoves)
+            .SingleOrDefaultAsync(myPokemon => myPokemon.Id == id, cancellationToken);
+
     public async Task<MyPokemon?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
         await dbContext.MyPokemons
             .AsNoTracking()

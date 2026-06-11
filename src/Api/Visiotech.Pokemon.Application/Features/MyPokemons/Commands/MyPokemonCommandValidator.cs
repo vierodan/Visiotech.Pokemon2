@@ -20,6 +20,32 @@ internal static class MyPokemonCommandValidator
             AddError(errors, "pokemonSpeciesId", "PokemonSpeciesId is required.");
         }
 
+        AppendPlayableStateErrors(errors, level, currentHealthPoints, totalHealthPoints, equippedMoveIds);
+
+        return errors.ToDictionary(static pair => pair.Key, static pair => pair.Value.ToArray(), StringComparer.OrdinalIgnoreCase);
+    }
+
+    public static IReadOnlyDictionary<string, string[]> Validate(
+        int level,
+        int currentHealthPoints,
+        int totalHealthPoints,
+        IReadOnlyCollection<Guid>? equippedMoveIds)
+    {
+        var errors = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+        AppendPlayableStateErrors(errors, level, currentHealthPoints, totalHealthPoints, equippedMoveIds);
+
+        return errors.ToDictionary(static pair => pair.Key, static pair => pair.Value.ToArray(), StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static void AppendPlayableStateErrors(
+        IDictionary<string, List<string>> errors,
+        int level,
+        int currentHealthPoints,
+        int totalHealthPoints,
+        IReadOnlyCollection<Guid>? equippedMoveIds)
+    {
+
         if (level is < 1 or > 100)
         {
             AddError(errors, "level", "Level must be between 1 and 100.");
@@ -61,8 +87,6 @@ internal static class MyPokemonCommandValidator
                 AddError(errors, "equippedMoveIds", "EquippedMoveIds must be unique.");
             }
         }
-
-        return errors.ToDictionary(static pair => pair.Key, static pair => pair.Value.ToArray(), StringComparer.OrdinalIgnoreCase);
     }
 
     public static MyPokemonCommandInput BuildInput(

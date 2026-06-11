@@ -6,6 +6,7 @@ using Visiotech.Pokemon.Api.Contracts;
 using Visiotech.Pokemon.Application.Abstractions.Messaging;
 using Visiotech.Pokemon.Application.Common.Models;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Commands.CreateMyPokemon;
+using Visiotech.Pokemon.Application.Features.MyPokemons.Commands.UpdateMyPokemon;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Queries.GetMyPokemonDetail;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Queries.GetMyPokemonsCatalog;
 using Visiotech.Pokemon.Contracts;
@@ -20,6 +21,13 @@ public static class MyPokemonEndpoints
             .WithName("CreateMyPokemon")
             .WithSummary("Creates a playable pokemon instance based on a base species.")
             .Produces<MyPokemonContract>(StatusCodes.Status201Created)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        endpoints.MapPut("/api/v1/my-pokemons/{id:guid}", UpdateMyPokemonAsync)
+            .WithName("UpdateMyPokemon")
+            .WithSummary("Updates the mutable state of a playable pokemon instance.")
+            .Produces<MyPokemonContract>(StatusCodes.Status200OK)
             .ProducesValidationProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -53,6 +61,24 @@ public static class MyPokemonEndpoints
             cancellationToken);
 
         return TypedResults.Created($"/api/v1/my-pokemons/{response.Id}", response.ToContract());
+    }
+
+    private static async Task<Ok<MyPokemonContract>> UpdateMyPokemonAsync(
+        Guid id,
+        UpdateMyPokemonRequestContract request,
+        ICommandHandler<UpdateMyPokemonCommand, MyPokemonResponse> handler,
+        CancellationToken cancellationToken)
+    {
+        var response = await handler.Handle(
+            new UpdateMyPokemonCommand(
+                id,
+                request.Level,
+                request.CurrentHealthPoints,
+                request.TotalHealthPoints,
+                request.EquippedMoveIds),
+            cancellationToken);
+
+        return TypedResults.Ok(response.ToContract());
     }
 
     private static async Task<Ok<MyPokemonCatalogContract>> GetMyPokemonsCatalogAsync(
