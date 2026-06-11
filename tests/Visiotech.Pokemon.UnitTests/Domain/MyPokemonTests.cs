@@ -142,4 +142,39 @@ public sealed class MyPokemonTests
         Assert.Equal(150, myPokemon.TotalHealthPoints);
         Assert.Equal([firstMoveId, secondMoveId], myPokemon.EquippedMoveIds);
     }
+
+    [Fact]
+    public void UpdateCurrentHealthPoints_Should_Apply_New_Current_Health_When_Value_Is_Valid()
+    {
+        var myPokemon = MyPokemon.Create(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Level.Create(50),
+            120,
+            150,
+            [Guid.NewGuid()]);
+
+        myPokemon.UpdateCurrentHealthPoints(35);
+
+        Assert.Equal(35, myPokemon.CurrentHealthPoints);
+        Assert.Equal(150, myPokemon.TotalHealthPoints);
+    }
+
+    [Fact]
+    public void UpdateCurrentHealthPoints_Should_Reject_Value_Greater_Than_Total_Health()
+    {
+        var myPokemon = MyPokemon.Create(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Level.Create(50),
+            120,
+            150,
+            [Guid.NewGuid()]);
+
+        var action = () => myPokemon.UpdateCurrentHealthPoints(151);
+
+        var exception = Assert.Throws<DomainException>(action);
+        Assert.Contains("cannot exceed", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(120, myPokemon.CurrentHealthPoints);
+    }
 }

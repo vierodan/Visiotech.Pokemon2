@@ -71,6 +71,12 @@ public sealed class MyPokemon : AggregateRoot<Guid>
         ApplyEquippedMoves(equippedMoveIds);
     }
 
+    public void UpdateCurrentHealthPoints(int currentHealthPoints)
+    {
+        ValidateBattleState(currentHealthPoints, TotalHealthPoints);
+        CurrentHealthPoints = currentHealthPoints;
+    }
+
     private static void ValidateBattleState(int currentHealthPoints, int totalHealthPoints)
     {
         if (totalHealthPoints <= 0)
@@ -87,7 +93,6 @@ public sealed class MyPokemon : AggregateRoot<Guid>
         {
             throw new DomainException("Pokemon current health points cannot exceed total health points.");
         }
-
     }
 
     private static void ValidateEquippedMoves(IReadOnlyCollection<Guid> equippedMoveIds)

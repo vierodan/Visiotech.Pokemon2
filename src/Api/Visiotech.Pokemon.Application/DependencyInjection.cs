@@ -1,9 +1,12 @@
 using Microsoft.Extensions.DependencyInjection;
 using Visiotech.Pokemon.Application.Abstractions.Messaging;
+using Visiotech.Pokemon.Application.Abstractions.Services;
 using Visiotech.Pokemon.Application.Common.Models;
 using Visiotech.Pokemon.Application.Common.Observability;
 using Visiotech.Pokemon.Application.Features.Battles.Commands.CreateBattle;
+using Visiotech.Pokemon.Application.Features.Battles.Commands.ExecuteBattlePhase;
 using Visiotech.Pokemon.Application.Features.Battles.Queries.GetBattleState;
+using Visiotech.Pokemon.Application.Features.Damage;
 using Visiotech.Pokemon.Application.Features.Damage.Queries.CalculateMoveDamage;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Commands.CreateMyPokemon;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Commands.DeleteMyPokemon;
@@ -32,7 +35,10 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
+        services.AddScoped<IMoveDamageCalculationService, MoveDamageCalculationService>();
+
         AddLoggedCommandHandler<CreateBattleCommand, BattleResponse, CreateBattleCommandHandler>(services);
+        AddLoggedCommandHandler<ExecuteBattlePhaseCommand, BattlePhaseExecutionResponse, ExecuteBattlePhaseCommandHandler>(services);
         AddLoggedQueryHandler<GetBattleStateQuery, BattleResponse, GetBattleStateQueryHandler>(services);
         AddLoggedQueryHandler<CalculateMoveDamageQuery, MoveDamageCalculationResponse, CalculateMoveDamageQueryHandler>(services);
         AddLoggedQueryHandler<GetSystemInfoQuery, SystemInfoResponse, GetSystemInfoQueryHandler>(services);

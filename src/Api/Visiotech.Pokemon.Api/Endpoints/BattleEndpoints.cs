@@ -6,6 +6,7 @@ using Visiotech.Pokemon.Api.Contracts;
 using Visiotech.Pokemon.Application.Abstractions.Messaging;
 using Visiotech.Pokemon.Application.Common.Models;
 using Visiotech.Pokemon.Application.Features.Battles.Commands.CreateBattle;
+using Visiotech.Pokemon.Application.Features.Battles.Commands.ExecuteBattlePhase;
 using Visiotech.Pokemon.Application.Features.Battles.Queries.GetBattleState;
 using Visiotech.Pokemon.Contracts;
 
@@ -26,6 +27,13 @@ public static class BattleEndpoints
             .WithName("GetBattleState")
             .WithSummary("Returns the current state and recorded history of a battle.")
             .Produces<BattleContract>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        endpoints.MapPost("/api/v1/battles/{id:guid}/phases", ExecuteBattlePhaseAsync)
+            .WithName("ExecuteBattlePhase")
+            .WithSummary("Executes the next battle phase for a battle using an equipped move.")
+            .Produces<BattlePhaseExecutionContract>(StatusCodes.Status200OK)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         return endpoints;
@@ -51,6 +59,22 @@ public static class BattleEndpoints
         CancellationToken cancellationToken)
     {
         var response = await handler.Handle(new GetBattleStateQuery(id), cancellationToken);
+        return TypedResults.Ok(response.ToContract());
+    }
+
+    private static async Task<Ok<BattlePhaseExecutionContract>> ExecuteBattlePhaseAsync(
+        Guid id,
+        ExecuteBattlePhaseRequestContract request,
+        ICommandHandler<ExecuteBattlePhaseCommand, BattlePhaseExecutionResponse> handler,
+        CancellationToken cancellationToken)
+    {
+        var response = await handler.Handle(
+            new ExecuteBattlePhaseCommand(
+                id,
+                request.AttackerMyPokemonId,
+                request.MoveId),
+            cancellationToken);
+
         return TypedResults.Ok(response.ToContract());
     }
 }

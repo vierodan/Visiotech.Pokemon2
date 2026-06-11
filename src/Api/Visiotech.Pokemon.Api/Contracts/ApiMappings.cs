@@ -18,6 +18,11 @@ public static class ApiMappings
             response.Combatants.Select(item => item.ToContract()).ToArray(),
             response.History.Select(item => item.ToContract()).ToArray());
 
+    public static BattlePhaseExecutionContract ToContract(this BattlePhaseExecutionResponse response) =>
+        new(
+            response.Battle.ToContract(),
+            response.DamageCalculation.ToContract());
+
     public static MoveDamageCalculationContract ToContract(this MoveDamageCalculationResponse response) =>
         new(
             response.AttackerMyPokemonId,
