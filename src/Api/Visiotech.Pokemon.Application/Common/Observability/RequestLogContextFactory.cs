@@ -1,4 +1,5 @@
 using Visiotech.Pokemon.Application.Common.Models;
+using Visiotech.Pokemon.Application.Features.Battles.Commands.CreateBattle;
 using Visiotech.Pokemon.Application.Features.Damage.Queries.CalculateMoveDamage;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Commands.CreateMyPokemon;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Commands.DeleteMyPokemon;
@@ -27,6 +28,11 @@ internal static class RequestLogContextFactory
     public static object CreateRequestPayload<TRequest>(TRequest request) =>
         request switch
         {
+            CreateBattleCommand command => new
+            {
+                command.FirstMyPokemonId,
+                command.SecondMyPokemonId
+            },
             CalculateMoveDamageQuery query => new
             {
                 query.AttackerMyPokemonId,
@@ -164,6 +170,14 @@ internal static class RequestLogContextFactory
     public static object CreateResponseSummary<TResponse>(TResponse response) =>
         response switch
         {
+            BattleResponse battle => new
+            {
+                battle.Id,
+                battle.Status,
+                battle.CurrentTurnNumber,
+                battle.NextAttackerMyPokemonId,
+                CombatantCount = battle.Combatants.Count
+            },
             MoveDamageCalculationResponse damage => new
             {
                 damage.AttackerMyPokemonId,

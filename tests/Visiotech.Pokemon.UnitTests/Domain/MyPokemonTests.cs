@@ -24,6 +24,21 @@ public sealed class MyPokemonTests
     }
 
     [Fact]
+    public void Create_Should_Allow_Current_Health_Points_Equal_To_Zero()
+    {
+        var myPokemon = MyPokemon.Create(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Level.Create(50),
+            0,
+            150,
+            [Guid.NewGuid()]);
+
+        Assert.Equal(0, myPokemon.CurrentHealthPoints);
+        Assert.Equal(150, myPokemon.TotalHealthPoints);
+    }
+
+    [Fact]
     public void Create_Should_Reject_Duplicate_Equipped_Moves()
     {
         var moveId = Guid.NewGuid();

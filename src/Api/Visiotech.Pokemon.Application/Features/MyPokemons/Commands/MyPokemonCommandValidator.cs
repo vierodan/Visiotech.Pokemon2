@@ -51,9 +51,9 @@ internal static class MyPokemonCommandValidator
             AddError(errors, "level", "Level must be between 1 and 100.");
         }
 
-        if (currentHealthPoints <= 0)
+        if (currentHealthPoints < 0)
         {
-            AddError(errors, "currentHealthPoints", "CurrentHealthPoints must be greater than 0.");
+            AddError(errors, "currentHealthPoints", "CurrentHealthPoints must be greater than or equal to 0.");
         }
 
         if (totalHealthPoints <= 0)

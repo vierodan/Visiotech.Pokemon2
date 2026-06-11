@@ -40,7 +40,11 @@ public sealed class MyPokemonDeletionDependencyChecker(PokemonDbContext dbContex
 
         try
         {
-            var blockingReasons = new List<string>();
+            var activeBattleIds = await GetActiveBattleIdsAsync(connection, myPokemonId, cancellationToken);
+
+            var blockingReasons = activeBattleIds
+                .Select(static battleId => $"My pokemon cannot be deleted because it participates in active battle '{battleId}'.")
+                .ToList();
 
             foreach (var foreignKey in foreignKeys)
             {
@@ -118,6 +122,36 @@ public sealed class MyPokemonDeletionDependencyChecker(PokemonDbContext dbContex
 
         var result = await command.ExecuteScalarAsync(cancellationToken);
         return result is not null && result is not DBNull;
+    }
+
+    private static async Task<IReadOnlyCollection<Guid>> GetActiveBattleIdsAsync(
+        System.Data.Common.DbConnection connection,
+        Guid myPokemonId,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT DISTINCT bc.battle_id
+            FROM "pokemon2"."battle_combatants" bc
+            INNER JOIN "pokemon2"."battles" b ON b."Id" = bc.battle_id
+            WHERE bc.my_pokemon_id = @myPokemonId
+              AND b.status IN ('Created', 'InProgress')
+            """;
+
+        var parameter = command.CreateParameter();
+        parameter.ParameterName = "@myPokemonId";
+        parameter.Value = myPokemonId;
+        command.Parameters.Add(parameter);
+
+        var battleIds = new List<Guid>();
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            battleIds.Add(reader.GetGuid(0));
+        }
+
+        return battleIds;
     }
 
     private static string QualifyTableName(string tableName, string? schema) =>

@@ -23,6 +23,21 @@ public sealed class MyPokemonRepository(PokemonDbContext dbContext) : IMyPokemon
             .Include(myPokemon => myPokemon.EquippedMoves)
             .SingleOrDefaultAsync(myPokemon => myPokemon.Id == id, cancellationToken);
 
+    public async Task<IReadOnlyCollection<MyPokemon>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
+    {
+        var requestedIds = ids.Distinct().ToArray();
+        if (requestedIds.Length == 0)
+        {
+            return [];
+        }
+
+        return await dbContext.MyPokemons
+            .AsNoTracking()
+            .Include(myPokemon => myPokemon.EquippedMoves)
+            .Where(myPokemon => requestedIds.Contains(myPokemon.Id))
+            .ToArrayAsync(cancellationToken);
+    }
+
     public async Task<MyPokemonCatalogPage> SearchAsync(MyPokemonCatalogFilter filter, CancellationToken cancellationToken)
     {
         var query = dbContext.MyPokemons

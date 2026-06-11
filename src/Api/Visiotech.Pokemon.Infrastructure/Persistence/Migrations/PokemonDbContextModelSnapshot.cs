@@ -21,6 +21,73 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
 
         modelBuilder.HasDefaultSchema("pokemon2");
 
+        modelBuilder.Entity("Visiotech.Pokemon.Domain.Battles.Battle", b =>
+        {
+            b.Property<Guid>("Id")
+                .ValueGeneratedNever()
+                .HasColumnType("uuid");
+
+            b.Property<int>("CurrentTurnNumber")
+                .HasColumnType("integer")
+                .HasColumnName("current_turn_number");
+
+            b.Property<Guid>("NextAttackerMyPokemonId")
+                .HasColumnType("uuid")
+                .HasColumnName("next_attacker_my_pokemon_id");
+
+            b.Property<string>("Status")
+                .IsRequired()
+                .HasMaxLength(20)
+                .HasColumnType("character varying(20)")
+                .HasColumnName("status");
+
+            b.HasKey("Id");
+
+            b.ToTable("battles", "pokemon2", t =>
+            {
+                t.HasCheckConstraint("ck_battles_current_turn_number", "\"current_turn_number\" >= 1");
+                t.HasCheckConstraint("ck_battles_status", "\"status\" IN ('Created', 'InProgress', 'Finished')");
+            });
+        });
+
+        modelBuilder.Entity("Visiotech.Pokemon.Domain.Battles.BattleCombatant", b =>
+        {
+            b.Property<Guid>("BattleId")
+                .HasColumnType("uuid")
+                .HasColumnName("battle_id");
+
+            b.Property<int>("SlotNumber")
+                .HasColumnType("integer")
+                .HasColumnName("slot_number");
+
+            b.Property<int>("CurrentHealthPoints")
+                .HasColumnType("integer")
+                .HasColumnName("current_health_points");
+
+            b.Property<Guid>("MyPokemonId")
+                .HasColumnType("uuid")
+                .HasColumnName("my_pokemon_id");
+
+            b.Property<int>("TotalHealthPoints")
+                .HasColumnType("integer")
+                .HasColumnName("total_health_points");
+
+            b.HasKey("BattleId", "SlotNumber");
+
+            b.HasIndex("MyPokemonId");
+
+            b.HasIndex("BattleId", "MyPokemonId")
+                .IsUnique();
+
+            b.ToTable("battle_combatants", "pokemon2", t =>
+            {
+                t.HasCheckConstraint("ck_battle_combatants_current_health_non_negative", "\"current_health_points\" >= 0");
+                t.HasCheckConstraint("ck_battle_combatants_current_health_range", "\"current_health_points\" <= \"total_health_points\"");
+                t.HasCheckConstraint("ck_battle_combatants_slot_number", "\"slot_number\" BETWEEN 1 AND 2");
+                t.HasCheckConstraint("ck_battle_combatants_total_health_positive", "\"total_health_points\" > 0");
+            });
+        });
+
         modelBuilder.Entity("Visiotech.Pokemon.Domain.Pokemons.MyPokemon", b =>
         {
             b.Property<Guid>("Id")
@@ -45,7 +112,7 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
 
             b.ToTable("my_pokemons", "pokemon2", t =>
             {
-                t.HasCheckConstraint("ck_my_pokemons_current_health_positive", "\"current_health_points\" > 0");
+                t.HasCheckConstraint("ck_my_pokemons_current_health_non_negative", "\"current_health_points\" >= 0");
                 t.HasCheckConstraint("ck_my_pokemons_current_health_range", "\"current_health_points\" <= \"total_health_points\"");
                 t.HasCheckConstraint("ck_my_pokemons_total_health_positive", "\"total_health_points\" > 0");
             });
@@ -164,6 +231,21 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
             });
         });
 
+        modelBuilder.Entity("Visiotech.Pokemon.Domain.Battles.BattleCombatant", b =>
+        {
+            b.HasOne("Visiotech.Pokemon.Domain.Battles.Battle", null)
+                .WithMany("Combatants")
+                .HasForeignKey("BattleId")
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired();
+
+            b.HasOne("Visiotech.Pokemon.Domain.Pokemons.MyPokemon", null)
+                .WithMany()
+                .HasForeignKey("MyPokemonId")
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired();
+        });
+
         modelBuilder.Entity("Visiotech.Pokemon.Domain.Pokemons.MyPokemon", b =>
         {
             b.HasOne("Visiotech.Pokemon.Domain.Pokemons.PokemonSpecies", null)
@@ -171,6 +253,12 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
                 .HasForeignKey("PokemonSpeciesId")
                 .OnDelete(DeleteBehavior.Restrict)
                 .IsRequired();
+        });
+
+        modelBuilder.Entity("Visiotech.Pokemon.Domain.Battles.Battle", b =>
+        {
+            b.Navigation("Combatants")
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
         });
 
         modelBuilder.Entity("Visiotech.Pokemon.Domain.Pokemons.MyPokemonMoveSlot", b =>

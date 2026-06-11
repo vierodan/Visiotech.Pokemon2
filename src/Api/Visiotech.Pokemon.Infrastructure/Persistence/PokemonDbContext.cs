@@ -1,10 +1,13 @@
 using Microsoft.EntityFrameworkCore;
+using Visiotech.Pokemon.Domain.Battles;
 using Visiotech.Pokemon.Domain.Pokemons;
 
 namespace Visiotech.Pokemon.Infrastructure.Persistence;
 
 public sealed class PokemonDbContext(DbContextOptions<PokemonDbContext> options) : DbContext(options)
 {
+    public DbSet<Battle> Battles => Set<Battle>();
+    public DbSet<BattleCombatant> BattleCombatants => Set<BattleCombatant>();
     public DbSet<MyPokemon> MyPokemons => Set<MyPokemon>();
     public DbSet<MyPokemonMoveSlot> MyPokemonMoveSlots => Set<MyPokemonMoveSlot>();
     public DbSet<PokemonLearnableMove> PokemonLearnableMoves => Set<PokemonLearnableMove>();
@@ -142,7 +145,7 @@ public sealed class PokemonDbContext(DbContextOptions<PokemonDbContext> options)
         {
             entity.ToTable("my_pokemons", tableBuilder =>
             {
-                tableBuilder.HasCheckConstraint("ck_my_pokemons_current_health_positive", "\"current_health_points\" > 0");
+                tableBuilder.HasCheckConstraint("ck_my_pokemons_current_health_non_negative", "\"current_health_points\" >= 0");
                 tableBuilder.HasCheckConstraint("ck_my_pokemons_total_health_positive", "\"total_health_points\" > 0");
                 tableBuilder.HasCheckConstraint("ck_my_pokemons_current_health_range", "\"current_health_points\" <= \"total_health_points\"");
             });
@@ -179,6 +182,86 @@ public sealed class PokemonDbContext(DbContextOptions<PokemonDbContext> options)
             entity.Navigation(myPokemon => myPokemon.Level).IsRequired();
             entity.Navigation(myPokemon => myPokemon.EquippedMoves)
                 .UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+
+        modelBuilder.Entity<Battle>(entity =>
+        {
+            entity.ToTable("battles", tableBuilder =>
+            {
+                tableBuilder.HasCheckConstraint(
+                    "ck_battles_status",
+                    "\"status\" IN ('Created', 'InProgress', 'Finished')");
+                tableBuilder.HasCheckConstraint(
+                    "ck_battles_current_turn_number",
+                    "\"current_turn_number\" >= 1");
+            });
+
+            entity.HasKey(battle => battle.Id);
+            entity.Property(battle => battle.Id).ValueGeneratedNever();
+
+            entity.Property(battle => battle.Status)
+                .HasColumnName("status")
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+
+            entity.Property(battle => battle.CurrentTurnNumber)
+                .HasColumnName("current_turn_number")
+                .IsRequired();
+
+            entity.Property(battle => battle.NextAttackerMyPokemonId)
+                .HasColumnName("next_attacker_my_pokemon_id")
+                .IsRequired();
+
+            entity.Navigation(battle => battle.Combatants)
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+
+        modelBuilder.Entity<BattleCombatant>(entity =>
+        {
+            entity.ToTable("battle_combatants", tableBuilder =>
+            {
+                tableBuilder.HasCheckConstraint("ck_battle_combatants_slot_number", "\"slot_number\" BETWEEN 1 AND 2");
+                tableBuilder.HasCheckConstraint("ck_battle_combatants_current_health_non_negative", "\"current_health_points\" >= 0");
+                tableBuilder.HasCheckConstraint("ck_battle_combatants_total_health_positive", "\"total_health_points\" > 0");
+                tableBuilder.HasCheckConstraint("ck_battle_combatants_current_health_range", "\"current_health_points\" <= \"total_health_points\"");
+            });
+
+            entity.HasKey(combatant => new { combatant.BattleId, combatant.SlotNumber });
+
+            entity.Property(combatant => combatant.BattleId)
+                .HasColumnName("battle_id")
+                .IsRequired();
+
+            entity.Property(combatant => combatant.SlotNumber)
+                .HasColumnName("slot_number")
+                .IsRequired();
+
+            entity.Property(combatant => combatant.MyPokemonId)
+                .HasColumnName("my_pokemon_id")
+                .IsRequired();
+
+            entity.Property(combatant => combatant.CurrentHealthPoints)
+                .HasColumnName("current_health_points")
+                .IsRequired();
+
+            entity.Property(combatant => combatant.TotalHealthPoints)
+                .HasColumnName("total_health_points")
+                .IsRequired();
+
+            entity.HasOne<Battle>()
+                .WithMany(battle => battle.Combatants)
+                .HasForeignKey(combatant => combatant.BattleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<MyPokemon>()
+                .WithMany()
+                .HasForeignKey(combatant => combatant.MyPokemonId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(combatant => combatant.MyPokemonId);
+            entity.HasIndex(combatant => new { combatant.BattleId, combatant.MyPokemonId })
+                .IsUnique();
         });
 
         modelBuilder.Entity<PokemonLearnableMove>(entity =>

@@ -78,9 +78,9 @@ public sealed class MyPokemon : AggregateRoot<Guid>
             throw new DomainException("Pokemon total health points must be greater than 0.");
         }
 
-        if (currentHealthPoints <= 0)
+        if (currentHealthPoints < 0)
         {
-            throw new DomainException("Pokemon current health points must be greater than 0.");
+            throw new DomainException("Pokemon current health points cannot be negative.");
         }
 
         if (currentHealthPoints > totalHealthPoints)
