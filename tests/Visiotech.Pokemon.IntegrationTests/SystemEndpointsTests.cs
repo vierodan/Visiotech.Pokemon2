@@ -25,7 +25,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
 
     public Task DisposeAsync() => Task.CompletedTask;
 
-    [Fact]
+    [PostgresFact]
     public async Task GetSystemInfo_Should_Return_Ok()
     {
         var response = await _client.GetAsync("/api/v1/system");
@@ -37,7 +37,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal("Visiotech.Pokemon.Api", payload.Service);
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task CreatePokemonSpecies_Then_GetCatalog_Should_Persist_Species()
     {
         var createResponse = await _client.PostAsJsonAsync(
@@ -65,7 +65,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal("Charizard", species.Name);
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task CreatePokemonMoves_Should_Load_Curated_Subset_For_Mvp_Catalog()
     {
         foreach (var pokemonMove in PokemonMvpMoveSeed.GetMoves())
@@ -91,7 +91,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal(PokemonMvpMoveSeed.GetMoves().Count, await dbContext.PokemonMoves.CountAsync());
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task GetPokemonMovesCatalog_Should_List_And_Get_Detail_After_Creating_Curated_Subset()
     {
         foreach (var pokemonMove in PokemonMvpMoveSeed.GetMoves())
@@ -128,7 +128,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal(0, detailPayload.Power);
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task GetPokemonMovesCatalog_Should_Filter_And_Paginate()
     {
         await CreateMoveAsync("Thunderbolt", "Electric", "Special", 90);
@@ -150,7 +150,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal("Special", item.Category);
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task GetPokemonMoveDetail_Should_Return_NotFound_When_Move_Does_Not_Exist()
     {
         var response = await _client.GetAsync($"/api/v1/moves/{Guid.NewGuid()}");
@@ -163,7 +163,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal("id", payload.RootElement.GetProperty("target").GetString());
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task UpdatePokemonMove_Should_Update_Move_And_Keep_Curated_Catalog_Coherent()
     {
         foreach (var pokemonMove in PokemonMvpMoveSeed.GetMoves())
@@ -219,7 +219,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal(95, detailPayload.Power);
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task UpdatePokemonMove_Should_Return_NotFound_When_Move_Does_Not_Exist()
     {
         var response = await _client.PutAsJsonAsync(
@@ -234,7 +234,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal("id", payload.RootElement.GetProperty("target").GetString());
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task UpdatePokemonMove_Should_Return_Conflict_For_Duplicate_Name()
     {
         var thunderbolt = await CreateMoveAsync("Thunderbolt", "Electric", "Special", 90);
@@ -247,7 +247,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task UpdatePokemonMove_Should_Return_Validation_Problem_For_Invalid_Data()
     {
         var protect = await CreateMoveAsync("Protect", "Normal", "Status", 0);
@@ -264,7 +264,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.True(errors.TryGetProperty("power", out _));
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task DeletePokemonMove_Should_Remove_Move_And_Keep_Curated_Catalog_Coherent()
     {
         foreach (var pokemonMove in PokemonMvpMoveSeed.GetMoves())
@@ -303,7 +303,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal(HttpStatusCode.NotFound, detailResponse.StatusCode);
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task DeletePokemonMove_Should_Return_Validation_Problem_When_Dependencies_Exist()
     {
         var move = await CreateMoveAsync("Protect", "Normal", "Status", 0);
@@ -327,7 +327,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal(HttpStatusCode.OK, detailResponse.StatusCode);
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task UpdatePokemonSpeciesLearnableMoves_Should_Associate_Moves_To_Species()
     {
         var blastoise = await CreateSpeciesAsync("Blastoise", ["Water"], 79, 83, 100, 85, 105, 78);
@@ -353,7 +353,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal(2, await dbContext.PokemonLearnableMoves.CountAsync());
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task UpdatePokemonSpeciesLearnableMoves_Should_Remove_Existing_Association()
     {
         var venusaur = await CreateSpeciesAsync("Venusaur", ["Grass", "Poison"], 80, 82, 83, 100, 100, 80);
@@ -377,7 +377,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal(solarBeam.Id, remainingMove.Id);
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task UpdatePokemonSpeciesLearnableMoves_Should_Return_Validation_Problem_For_Duplicate_Association()
     {
         var charizard = await CreateSpeciesAsync("Charizard", ["Fire", "Flying"], 78, 84, 78, 109, 85, 100);
@@ -400,7 +400,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.True(errors.TryGetProperty("addMoveIds", out _));
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task UpdatePokemonSpeciesLearnableMoves_Should_Return_Error_For_Inexistent_References()
     {
         var response = await _client.PutAsJsonAsync(
@@ -423,7 +423,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.True(errors.TryGetProperty("moveIds", out _));
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task GetPokemonSpeciesLearnableMoves_Should_Return_Learnable_Move_List_For_Blastoise()
     {
         var blastoise = await CreateSpeciesAsync("Blastoise", ["Water"], 79, 83, 100, 85, 105, 78);
@@ -452,7 +452,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
             move => Assert.Equal(("Surf", "Water", "Special", 90), (move.Name, move.Type, move.Category, move.Power)));
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task GetPokemonSpeciesLearnableMoves_Should_Return_NotFound_When_Species_Does_Not_Exist()
     {
         var response = await _client.GetAsync($"/api/v1/pokemons/{Guid.NewGuid()}/learnable-moves");
@@ -465,7 +465,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal("id", payload.RootElement.GetProperty("target").GetString());
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task GetPokemonSpeciesLearnableMoves_Should_Return_Empty_List_When_Species_Has_No_Associations()
     {
         var ditto = await CreateSpeciesAsync("Ditto", ["Normal"], 48, 48, 48, 48, 48, 48);
@@ -481,7 +481,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Empty(payload.Moves);
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task GetPokemonMoveSharedSpecies_Should_Return_Species_Sharing_Protect()
     {
         var charizard = await CreateSpeciesAsync("Charizard", ["Fire", "Flying"], 78, 84, 78, 109, 85, 100);
@@ -514,7 +514,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
             species => Assert.Equal("Venusaur", species.Name));
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task GetPokemonMoveSharedSpecies_Should_Return_NotFound_When_Move_Does_Not_Exist()
     {
         var response = await _client.GetAsync($"/api/v1/moves/{Guid.NewGuid()}/pokemon-species");
@@ -527,7 +527,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal("id", payload.RootElement.GetProperty("target").GetString());
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task GetPokemonMoveSharedSpecies_Should_Return_Empty_List_When_Move_Has_No_Associations()
     {
         var protect = await CreateMoveAsync("Protect", "Normal", "Status", 0);
@@ -543,7 +543,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Empty(payload.PokemonSpecies);
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task CreateMyPokemon_Should_Create_Playable_Instance_When_Request_Is_Valid()
     {
         var charizard = await CreateSpeciesAsync("Charizard", ["Fire", "Flying"], 78, 84, 78, 109, 85, 100);
@@ -579,7 +579,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal(2, await dbContext.MyPokemonMoveSlots.CountAsync());
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task CreateMyPokemon_Should_Return_NotFound_When_Species_Does_Not_Exist()
     {
         var response = await _client.PostAsJsonAsync(
@@ -594,7 +594,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal("pokemonSpeciesId", payload.RootElement.GetProperty("target").GetString());
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task CreateMyPokemon_Should_Return_Validation_Problem_For_Invalid_Level()
     {
         var species = await CreateSpeciesAsync("Blastoise", ["Water"], 79, 83, 100, 85, 105, 78);
@@ -617,7 +617,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.True(errors.TryGetProperty("level", out _));
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task CreateMyPokemon_Should_Return_Validation_Problem_For_Inconsistent_Health_Points()
     {
         var species = await CreateSpeciesAsync("Venusaur", ["Grass", "Poison"], 80, 82, 83, 100, 100, 80);
@@ -640,7 +640,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.True(errors.TryGetProperty("currentHealthPoints", out _));
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task CreateMyPokemon_Should_Return_Validation_Problem_For_NonLearnable_Move()
     {
         var species = await CreateSpeciesAsync("Pikachu", ["Electric"], 35, 55, 40, 50, 50, 90);
@@ -665,7 +665,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Contains(moveErrors.EnumerateArray().Select(static item => item.GetString()), message => message?.Contains("not learnable", StringComparison.OrdinalIgnoreCase) == true);
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task CreateMyPokemon_Should_Return_Validation_Problem_For_Duplicate_Moves()
     {
         var species = await CreateSpeciesAsync("Gengar", ["Ghost", "Poison"], 60, 65, 60, 130, 75, 110);
@@ -688,7 +688,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.True(errors.TryGetProperty("equippedMoveIds", out _));
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task CreateMyPokemon_Should_Return_Validation_Problem_For_More_Than_Four_Moves()
     {
         var species = await CreateSpeciesAsync("Dragonite", ["Dragon", "Flying"], 91, 134, 95, 100, 100, 80);
@@ -723,7 +723,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.True(errors.TryGetProperty("equippedMoveIds", out _));
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task GetMyPokemonsCatalog_Should_List_Playable_Instances_With_Species_And_Equipped_Moves()
     {
         var charizard = await CreateSpeciesAsync("Charizard", ["Fire", "Flying"], 78, 84, 78, 109, 85, 100);
@@ -762,7 +762,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
             move => Assert.Equal("Fly", move.Name));
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task GetMyPokemonDetail_Should_Return_Instance_When_It_Exists()
     {
         var species = await CreateSpeciesAsync("Venusaur", ["Grass", "Poison"], 80, 82, 83, 100, 100, 80);
@@ -790,7 +790,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
             move => Assert.Equal("Sludge Wave", move.Name));
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task GetMyPokemonDetail_Should_Return_NotFound_When_Instance_Does_Not_Exist()
     {
         var response = await _client.GetAsync($"/api/v1/my-pokemons/{Guid.NewGuid()}");
@@ -803,7 +803,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal("id", payload.RootElement.GetProperty("target").GetString());
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task UpdateMyPokemon_Should_Reequip_Moves_And_Update_Battle_State_When_Request_Is_Valid()
     {
         var charizard = await CreateSpeciesAsync("Charizard", ["Fire", "Flying"], 78, 84, 78, 109, 85, 100);
@@ -864,7 +864,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
             storedSlots.Select(slot => slot.PokemonMoveId).ToArray());
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task UpdateMyPokemon_Should_Return_NotFound_When_Instance_Does_Not_Exist()
     {
         var response = await _client.PutAsJsonAsync(
@@ -879,7 +879,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal("id", payload.RootElement.GetProperty("target").GetString());
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task UpdateMyPokemon_Should_Return_Validation_Problem_For_NonLearnable_Move()
     {
         var blastoise = await CreateSpeciesAsync("Blastoise", ["Water"], 79, 83, 100, 85, 105, 78);
@@ -904,7 +904,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
             message => message?.Contains("not learnable", StringComparison.OrdinalIgnoreCase) == true);
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task UpdateMyPokemon_Should_Return_Validation_Problem_For_More_Than_Four_Moves()
     {
         var dragonite = await CreateSpeciesAsync("Dragonite", ["Dragon", "Flying"], 91, 134, 95, 100, 100, 80);
@@ -937,7 +937,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.True(errors.TryGetProperty("equippedMoveIds", out _));
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task GetPokemonsCatalog_Should_List_And_Get_Detail_After_Creating_Mvp_Roster()
     {
         foreach (var pokemonSpecies in PokemonMvpRosterSeed.GetSpecies())
@@ -977,7 +977,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal(["Water"], detailPayload.Types);
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task GetPokemonsCatalog_Should_Filter_And_Paginate()
     {
         await CreateSpeciesAsync("Charizard", ["Fire", "Flying"], 78, 84, 78, 109, 85, 100);
@@ -998,7 +998,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal(["Fire"], item.Types);
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task UpdatePokemonSpecies_Should_Update_Species_And_Keep_Mvp_Roster_Coherent()
     {
         foreach (var pokemonSpecies in PokemonMvpRosterSeed.GetSpecies())
@@ -1060,7 +1060,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal(120, detailPayload.BaseStats.SpecialAttack);
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task UpdatePokemonSpecies_Should_Return_NotFound_When_Species_Does_Not_Exist()
     {
         var response = await _client.PutAsJsonAsync(
@@ -1078,7 +1078,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal("id", payload.RootElement.GetProperty("target").GetString());
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task UpdatePokemonSpecies_Should_Return_Conflict_For_Duplicate_Name()
     {
         var firstSpecies = await CreateSpeciesAsync("Charizard", ["Fire", "Flying"], 78, 84, 78, 109, 85, 100);
@@ -1094,7 +1094,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task UpdatePokemonSpecies_Should_Return_Validation_Problem_For_Invalid_Types()
     {
         var species = await CreateSpeciesAsync("Golem", ["Rock", "Ground"], 80, 120, 130, 55, 65, 45);
@@ -1114,7 +1114,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.True(errors.TryGetProperty("types", out _));
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task DeletePokemonSpecies_Should_Remove_Species_And_Keep_Mvp_Roster_Coherent()
     {
         foreach (var pokemonSpecies in PokemonMvpRosterSeed.GetSpecies())
@@ -1158,7 +1158,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal(HttpStatusCode.NotFound, detailResponse.StatusCode);
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task DeletePokemonSpecies_Should_Return_Validation_Problem_When_Dependencies_Exist()
     {
         var species = await CreateSpeciesAsync("Venusaur", ["Grass", "Poison"], 80, 82, 83, 100, 100, 80);
@@ -1182,7 +1182,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal(HttpStatusCode.OK, detailResponse.StatusCode);
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task GetPokemonSpeciesDetail_Should_Return_NotFound_When_Species_Does_Not_Exist()
     {
         var response = await _client.GetAsync($"/api/v1/pokemons/{Guid.NewGuid()}");
@@ -1195,7 +1195,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal("id", payload.RootElement.GetProperty("target").GetString());
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task CreatePokemonSpecies_Should_Return_Validation_Problem_For_Invalid_Request()
     {
         var response = await _client.PostAsJsonAsync(
@@ -1213,7 +1213,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.True(errors.TryGetProperty("types", out _));
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task CreatePokemonSpecies_Should_Return_Conflict_For_Duplicate_Name()
     {
         var request = new CreatePokemonSpeciesRequestContract(
@@ -1228,7 +1228,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal(HttpStatusCode.Conflict, secondResponse.StatusCode);
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task CreatePokemonMove_Should_Return_Conflict_For_Duplicate_Name()
     {
         var request = new CreatePokemonMoveRequestContract("Surf", "Water", "Special", 90);
@@ -1240,7 +1240,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal(HttpStatusCode.Conflict, secondResponse.StatusCode);
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task CreatePokemonMove_Should_Return_Validation_Problem_For_Invalid_Type()
     {
         var response = await _client.PostAsJsonAsync(
@@ -1255,7 +1255,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.True(errors.TryGetProperty("type", out _));
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task CreatePokemonMove_Should_Return_Validation_Problem_For_Invalid_Category()
     {
         var response = await _client.PostAsJsonAsync(
@@ -1270,7 +1270,7 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.True(errors.TryGetProperty("category", out _));
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task CreatePokemonMove_Should_Return_Validation_Problem_For_Inconsistent_Power()
     {
         var response = await _client.PostAsJsonAsync(

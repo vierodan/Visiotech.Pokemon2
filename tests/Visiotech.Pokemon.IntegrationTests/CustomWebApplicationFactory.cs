@@ -65,11 +65,6 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
         });
     }
 
-    protected override void Dispose(bool disposing)
-    {
-        base.Dispose(disposing);
-    }
-
     private async Task EnsureDatabaseExistsAsync()
     {
         await using var connection = new NpgsqlConnection(_adminConnectionString);
@@ -105,7 +100,7 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
         await resetCommand.ExecuteNonQueryAsync();
     }
 
-    private static string ResolveTemplateConnectionString()
+    internal static string ResolveTemplateConnectionString()
     {
         var explicitConnectionString = Environment.GetEnvironmentVariable("IntegrationTests__Pokemon2Db")
             ?? Environment.GetEnvironmentVariable("ConnectionStrings__Pokemon2Db");
