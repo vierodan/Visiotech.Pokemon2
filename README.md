@@ -1,4 +1,4 @@
-# Visiotech Pokémon API
+# Pokémon2 API
 
 ## Introducción general
 
