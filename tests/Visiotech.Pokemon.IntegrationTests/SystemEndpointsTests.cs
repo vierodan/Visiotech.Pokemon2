@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Visiotech.Pokemon.Application.Abstractions.Randomization;
 using Visiotech.Pokemon.Application.Abstractions.Persistence;
 using Visiotech.Pokemon.Contracts;
 using Visiotech.Pokemon.Infrastructure.Persistence;
@@ -880,6 +881,240 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
     }
 
     [PostgresFact]
+    public async Task CalculateMoveDamage_Should_Return_Trace_For_Simple_Type_Advantage_With_Special_Category()
+    {
+        var pikachu = await CreateSpeciesAsync("Pikachu", ["Electric"], 35, 55, 40, 50, 50, 90);
+        var blastoise = await CreateSpeciesAsync("Blastoise", ["Water"], 79, 83, 100, 85, 105, 78);
+        var thunderbolt = await CreateMoveAsync("Thunderbolt", "Electric", "Special", 90);
+        var surf = await CreateMoveAsync("Surf", "Water", "Special", 90);
+
+        await AssociateLearnableMovesAsync(pikachu.Id, thunderbolt.Id);
+        await AssociateLearnableMovesAsync(blastoise.Id, surf.Id);
+
+        var attacker = await CreateMyPokemonAsync(pikachu.Id, 50, 100, 100, thunderbolt.Id);
+        var defender = await CreateMyPokemonAsync(blastoise.Id, 50, 140, 140, surf.Id);
+
+        using var client = CreateClientWithDamageRandom(100);
+        var response = await client.PostAsJsonAsync(
+            "/api/v1/damage-calculations",
+            new CalculateMoveDamageRequestContract(attacker.Id, defender.Id, thunderbolt.Id));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<MoveDamageCalculationContract>();
+        Assert.NotNull(payload);
+        Assert.Equal(attacker.Id, payload.AttackerMyPokemonId);
+        Assert.Equal(defender.Id, payload.DefenderMyPokemonId);
+        Assert.Equal(thunderbolt.Id, payload.MoveId);
+        Assert.Equal("Thunderbolt", payload.MoveName);
+        Assert.Equal("Electric", payload.MoveType);
+        Assert.Equal("Special", payload.MoveCategory);
+        Assert.Equal("SpecialAttack", payload.OffensiveStat);
+        Assert.Equal(50, payload.OffensiveStatValue);
+        Assert.Equal("SpecialDefense", payload.DefensiveStat);
+        Assert.Equal(105, payload.DefensiveStatValue);
+        Assert.Equal(100, payload.RandomFactor);
+        Assert.Equal(18.8571428571428571428571429m, payload.BaseDamage, 6);
+        Assert.Equal(2m, payload.TotalEffectiveness);
+        Assert.Equal(37, payload.RawDamage);
+        Assert.Equal(37, payload.Damage);
+        Assert.Equal(103, payload.DefenderRemainingHealthPoints);
+        Assert.Collection(
+            payload.EffectivenessBreakdown,
+            item =>
+            {
+                Assert.Equal("Water", item.DefenderType);
+                Assert.Equal(2m, item.Multiplier);
+            });
+    }
+
+    [PostgresFact]
+    public async Task CalculateMoveDamage_Should_Reflect_Random_Variation_Between_85_And_100()
+    {
+        var pikachu = await CreateSpeciesAsync("Pikachu", ["Electric"], 35, 55, 40, 50, 50, 90);
+        var blastoise = await CreateSpeciesAsync("Blastoise", ["Water"], 79, 83, 100, 85, 105, 78);
+        var thunderbolt = await CreateMoveAsync("Thunderbolt", "Electric", "Special", 90);
+        var surf = await CreateMoveAsync("Surf", "Water", "Special", 90);
+
+        await AssociateLearnableMovesAsync(pikachu.Id, thunderbolt.Id);
+        await AssociateLearnableMovesAsync(blastoise.Id, surf.Id);
+
+        var attacker = await CreateMyPokemonAsync(pikachu.Id, 50, 100, 100, thunderbolt.Id);
+        var defender = await CreateMyPokemonAsync(blastoise.Id, 50, 140, 140, surf.Id);
+
+        using var highRandomClient = CreateClientWithDamageRandom(100);
+        using var lowRandomClient = CreateClientWithDamageRandom(85);
+
+        var highRandomResponse = await CalculateMoveDamageAsync(highRandomClient, attacker.Id, defender.Id, thunderbolt.Id);
+        var lowRandomResponse = await CalculateMoveDamageAsync(lowRandomClient, attacker.Id, defender.Id, thunderbolt.Id);
+
+        Assert.Equal(100, highRandomResponse.RandomFactor);
+        Assert.Equal(85, lowRandomResponse.RandomFactor);
+        Assert.Equal(37, highRandomResponse.Damage);
+        Assert.Equal(32, lowRandomResponse.Damage);
+        Assert.True(lowRandomResponse.Damage < highRandomResponse.Damage);
+    }
+
+    [PostgresFact]
+    public async Task CalculateMoveDamage_Should_Apply_Dual_Type_Quarter_Resistance()
+    {
+        var venusaur = await CreateSpeciesAsync("Venusaur", ["Grass", "Poison"], 80, 82, 83, 100, 100, 80);
+        var charizard = await CreateSpeciesAsync("Charizard", ["Fire", "Flying"], 78, 84, 78, 109, 85, 100);
+        var solarBeam = await CreateMoveAsync("Solar Beam", "Grass", "Special", 120);
+        var flamethrower = await CreateMoveAsync("Flamethrower", "Fire", "Special", 90);
+
+        await AssociateLearnableMovesAsync(venusaur.Id, solarBeam.Id);
+        await AssociateLearnableMovesAsync(charizard.Id, flamethrower.Id);
+
+        var attacker = await CreateMyPokemonAsync(venusaur.Id, 50, 140, 140, solarBeam.Id);
+        var defender = await CreateMyPokemonAsync(charizard.Id, 50, 150, 150, flamethrower.Id);
+
+        using var client = CreateClientWithDamageRandom(100);
+        var payload = await CalculateMoveDamageAsync(client, attacker.Id, defender.Id, solarBeam.Id);
+
+        Assert.Equal(0.25m, payload.TotalEffectiveness);
+        Assert.Equal(15, payload.Damage);
+        Assert.Equal(135, payload.DefenderRemainingHealthPoints);
+        Assert.Collection(
+            payload.EffectivenessBreakdown,
+            item =>
+            {
+                Assert.Equal("Fire", item.DefenderType);
+                Assert.Equal(0.5m, item.Multiplier);
+            },
+            item =>
+            {
+                Assert.Equal("Flying", item.DefenderType);
+                Assert.Equal(0.5m, item.Multiplier);
+            });
+    }
+
+    [PostgresFact]
+    public async Task CalculateMoveDamage_Should_Return_Zero_For_Type_Immunity()
+    {
+        var pikachu = await CreateSpeciesAsync("Pikachu", ["Electric"], 35, 55, 40, 50, 50, 90);
+        var golem = await CreateSpeciesAsync("Golem", ["Rock", "Ground"], 80, 120, 130, 55, 65, 45);
+        var thunderbolt = await CreateMoveAsync("Thunderbolt", "Electric", "Special", 90);
+        var earthquake = await CreateMoveAsync("Earthquake", "Ground", "Physical", 100);
+
+        await AssociateLearnableMovesAsync(pikachu.Id, thunderbolt.Id);
+        await AssociateLearnableMovesAsync(golem.Id, earthquake.Id);
+
+        var attacker = await CreateMyPokemonAsync(pikachu.Id, 50, 100, 100, thunderbolt.Id);
+        var defender = await CreateMyPokemonAsync(golem.Id, 50, 160, 160, earthquake.Id);
+
+        using var client = CreateClientWithDamageRandom(100);
+        var payload = await CalculateMoveDamageAsync(client, attacker.Id, defender.Id, thunderbolt.Id);
+
+        Assert.Equal(0m, payload.TotalEffectiveness);
+        Assert.Equal(0, payload.RawDamage);
+        Assert.Equal(0, payload.Damage);
+        Assert.Equal(160, payload.DefenderRemainingHealthPoints);
+        Assert.Collection(
+            payload.EffectivenessBreakdown,
+            item =>
+            {
+                Assert.Equal("Rock", item.DefenderType);
+                Assert.Equal(1m, item.Multiplier);
+            },
+            item =>
+            {
+                Assert.Equal("Ground", item.DefenderType);
+                Assert.Equal(0m, item.Multiplier);
+            });
+    }
+
+    [PostgresFact]
+    public async Task CalculateMoveDamage_Should_Return_Trace_For_Physical_Category()
+    {
+        var machamp = await CreateSpeciesAsync("Machamp", ["Fighting"], 90, 130, 80, 65, 85, 55);
+        var snorlax = await CreateSpeciesAsync("Snorlax", ["Normal"], 160, 110, 65, 65, 110, 30);
+        var closeCombat = await CreateMoveAsync("Close Combat", "Fighting", "Physical", 120);
+        var protect = await CreateMoveAsync("Protect", "Normal", "Status", 0);
+
+        await AssociateLearnableMovesAsync(machamp.Id, closeCombat.Id);
+        await AssociateLearnableMovesAsync(snorlax.Id, protect.Id);
+
+        var attacker = await CreateMyPokemonAsync(machamp.Id, 50, 180, 180, closeCombat.Id);
+        var defender = await CreateMyPokemonAsync(snorlax.Id, 50, 250, 250, protect.Id);
+
+        using var client = CreateClientWithDamageRandom(100);
+        var payload = await CalculateMoveDamageAsync(client, attacker.Id, defender.Id, closeCombat.Id);
+
+        Assert.Equal("Physical", payload.MoveCategory);
+        Assert.Equal("Attack", payload.OffensiveStat);
+        Assert.Equal(130, payload.OffensiveStatValue);
+        Assert.Equal("Defense", payload.DefensiveStat);
+        Assert.Equal(65, payload.DefensiveStatValue);
+        Assert.Equal(2m, payload.TotalEffectiveness);
+        Assert.Equal(211, payload.Damage);
+        Assert.Equal(39, payload.DefenderRemainingHealthPoints);
+    }
+
+    [PostgresFact]
+    public async Task CalculateMoveDamage_Should_Return_NotFound_When_Attacker_Does_Not_Exist()
+    {
+        var response = await _client.PostAsJsonAsync(
+            "/api/v1/damage-calculations",
+            new CalculateMoveDamageRequestContract(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid()));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        await using var responseStream = await response.Content.ReadAsStreamAsync();
+        using var payload = await JsonDocument.ParseAsync(responseStream);
+        Assert.Equal("Not found", payload.RootElement.GetProperty("title").GetString());
+        Assert.Equal("attackerMyPokemonId", payload.RootElement.GetProperty("target").GetString());
+    }
+
+    [PostgresFact]
+    public async Task CalculateMoveDamage_Should_Return_Validation_Problem_When_Move_Is_Not_Equipped()
+    {
+        var pikachu = await CreateSpeciesAsync("Pikachu", ["Electric"], 35, 55, 40, 50, 50, 90);
+        var blastoise = await CreateSpeciesAsync("Blastoise", ["Water"], 79, 83, 100, 85, 105, 78);
+        var thunderbolt = await CreateMoveAsync("Thunderbolt", "Electric", "Special", 90);
+        var surf = await CreateMoveAsync("Surf", "Water", "Special", 90);
+
+        await AssociateLearnableMovesAsync(pikachu.Id, thunderbolt.Id);
+        await AssociateLearnableMovesAsync(blastoise.Id, surf.Id);
+
+        var attacker = await CreateMyPokemonAsync(pikachu.Id, 50, 100, 100, thunderbolt.Id);
+        var defender = await CreateMyPokemonAsync(blastoise.Id, 50, 140, 140, surf.Id);
+
+        var response = await _client.PostAsJsonAsync(
+            "/api/v1/damage-calculations",
+            new CalculateMoveDamageRequestContract(attacker.Id, defender.Id, surf.Id));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        await using var responseStream = await response.Content.ReadAsStreamAsync();
+        using var payload = await JsonDocument.ParseAsync(responseStream);
+        Assert.True(payload.RootElement.TryGetProperty("errors", out var errors));
+        Assert.True(errors.TryGetProperty("moveId", out var moveErrors));
+        Assert.Contains(
+            moveErrors.EnumerateArray().Select(static item => item.GetString()),
+            message => message?.Contains("not equipped", StringComparison.OrdinalIgnoreCase) == true);
+    }
+
+    [PostgresFact]
+    public async Task CalculateMoveDamage_Should_Return_Random_Factor_Within_Normative_Range()
+    {
+        var pikachu = await CreateSpeciesAsync("Pikachu", ["Electric"], 35, 55, 40, 50, 50, 90);
+        var blastoise = await CreateSpeciesAsync("Blastoise", ["Water"], 79, 83, 100, 85, 105, 78);
+        var thunderbolt = await CreateMoveAsync("Thunderbolt", "Electric", "Special", 90);
+        var surf = await CreateMoveAsync("Surf", "Water", "Special", 90);
+
+        await AssociateLearnableMovesAsync(pikachu.Id, thunderbolt.Id);
+        await AssociateLearnableMovesAsync(blastoise.Id, surf.Id);
+
+        var attacker = await CreateMyPokemonAsync(pikachu.Id, 50, 100, 100, thunderbolt.Id);
+        var defender = await CreateMyPokemonAsync(blastoise.Id, 50, 140, 140, surf.Id);
+
+        var payload = await CalculateMoveDamageAsync(_client, attacker.Id, defender.Id, thunderbolt.Id);
+
+        Assert.InRange(payload.RandomFactor, 85, 100);
+    }
+
+    [PostgresFact]
     public async Task UpdateMyPokemon_Should_Reequip_Moves_And_Update_Battle_State_When_Request_Is_Valid()
     {
         var charizard = await CreateSpeciesAsync("Charizard", ["Fire", "Flying"], 78, 84, 78, 109, 85, 100);
@@ -1516,6 +1751,22 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         return payload;
     }
 
+    private async Task<MoveDamageCalculationContract> CalculateMoveDamageAsync(
+        HttpClient client,
+        Guid attackerMyPokemonId,
+        Guid defenderMyPokemonId,
+        Guid moveId)
+    {
+        var response = await client.PostAsJsonAsync(
+            "/api/v1/damage-calculations",
+            new CalculateMoveDamageRequestContract(attackerMyPokemonId, defenderMyPokemonId, moveId));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<MoveDamageCalculationContract>();
+        Assert.NotNull(payload);
+        return payload;
+    }
+
     private HttpClient CreateClientWithDeletionDependencies(params string[] blockingReasons) =>
         _factory.WithWebHostBuilder(builder =>
             builder.ConfigureServices(services =>
@@ -1546,6 +1797,15 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
             }))
             .CreateClient();
 
+    private HttpClient CreateClientWithDamageRandom(int randomFactor) =>
+        _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IDamageRandomProvider>();
+                services.AddSingleton<IDamageRandomProvider>(_ => new FixedDamageRandomProvider(randomFactor));
+            }))
+            .CreateClient();
+
     private sealed class StubPokemonSpeciesDeletionDependencyChecker(IReadOnlyCollection<string> blockingReasons)
         : IPokemonSpeciesDeletionDependencyChecker
     {
@@ -1571,5 +1831,10 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
             Guid myPokemonId,
             CancellationToken cancellationToken) =>
             Task.FromResult(blockingReasons);
+    }
+
+    private sealed class FixedDamageRandomProvider(int randomFactor) : IDamageRandomProvider
+    {
+        public int Next() => randomFactor;
     }
 }

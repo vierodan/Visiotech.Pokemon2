@@ -4,8 +4,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Visiotech.Pokemon.Application.Abstractions.Clock;
 using Visiotech.Pokemon.Application.Abstractions.Persistence;
+using Visiotech.Pokemon.Application.Abstractions.Randomization;
 using Visiotech.Pokemon.Infrastructure.Clock;
 using Visiotech.Pokemon.Infrastructure.Persistence;
+using Visiotech.Pokemon.Infrastructure.Randomization;
 
 namespace Visiotech.Pokemon.Infrastructure;
 
@@ -17,6 +19,7 @@ public static class DependencyInjection
         IHostEnvironment environment)
     {
         services.AddSingleton<IClock, SystemClock>();
+        services.AddSingleton<IDamageRandomProvider, DamageRandomProvider>();
 
         var persistenceSection = configuration.GetSection(PersistenceOptions.SectionName);
         services.Configure<PersistenceOptions>(options =>

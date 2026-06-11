@@ -1,4 +1,5 @@
 using Visiotech.Pokemon.Application.Common.Models;
+using Visiotech.Pokemon.Application.Features.Damage.Queries.CalculateMoveDamage;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Commands.CreateMyPokemon;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Commands.DeleteMyPokemon;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Queries.GetMyPokemonEquippedMoves;
@@ -26,6 +27,12 @@ internal static class RequestLogContextFactory
     public static object CreateRequestPayload<TRequest>(TRequest request) =>
         request switch
         {
+            CalculateMoveDamageQuery query => new
+            {
+                query.AttackerMyPokemonId,
+                query.DefenderMyPokemonId,
+                query.MoveId
+            },
             CreatePokemonMoveCommand command => new
             {
                 command.Name,
@@ -157,6 +164,16 @@ internal static class RequestLogContextFactory
     public static object CreateResponseSummary<TResponse>(TResponse response) =>
         response switch
         {
+            MoveDamageCalculationResponse damage => new
+            {
+                damage.AttackerMyPokemonId,
+                damage.DefenderMyPokemonId,
+                damage.MoveId,
+                damage.RandomFactor,
+                damage.TotalEffectiveness,
+                damage.Damage,
+                damage.DefenderRemainingHealthPoints
+            },
             PokemonMoveResponse move => new
             {
                 move.Id,

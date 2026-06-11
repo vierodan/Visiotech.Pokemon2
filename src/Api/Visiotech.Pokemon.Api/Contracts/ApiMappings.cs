@@ -9,6 +9,29 @@ public static class ApiMappings
     public static SystemInfoContract ToContract(this SystemInfoResponse response) =>
         new(response.Service, response.Environment, response.Version, response.GeneratedAtUtc);
 
+    public static MoveDamageCalculationContract ToContract(this MoveDamageCalculationResponse response) =>
+        new(
+            response.AttackerMyPokemonId,
+            response.DefenderMyPokemonId,
+            response.MoveId,
+            response.MoveName,
+            response.MoveType,
+            response.MoveCategory,
+            response.AttackerLevel,
+            response.MovePower,
+            response.OffensiveStat,
+            response.OffensiveStatValue,
+            response.DefensiveStat,
+            response.DefensiveStatValue,
+            response.DefenderCurrentHealthPoints,
+            response.RandomFactor,
+            response.BaseDamage,
+            response.EffectivenessBreakdown.Select(item => item.ToContract()).ToArray(),
+            response.TotalEffectiveness,
+            response.RawDamage,
+            response.Damage,
+            response.DefenderRemainingHealthPoints);
+
     public static PokemonSpeciesContract ToContract(this PokemonSpeciesResponse response) =>
         new(
             response.Id,
@@ -43,6 +66,11 @@ public static class ApiMappings
         new(
             response.MyPokemonId,
             response.Moves.Select(item => item.ToContract()).ToArray());
+
+    public static MoveDamageCalculationEffectivenessContract ToContract(this MoveDamageCalculationEffectivenessResponse response) =>
+        new(
+            response.DefenderType,
+            response.Multiplier);
 
     public static PokemonMoveContract ToContract(this PokemonMoveResponse response) =>
         new(

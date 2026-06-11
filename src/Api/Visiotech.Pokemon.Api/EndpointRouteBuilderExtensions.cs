@@ -6,6 +6,7 @@ public static class EndpointRouteBuilderExtensions
 {
     public static WebApplication MapApi(this WebApplication app)
     {
+        app.MapDamageCalculationEndpoints();
         app.MapSystemEndpoints();
         app.MapMoveEndpoints();
         app.MapPokemonEndpoints();
