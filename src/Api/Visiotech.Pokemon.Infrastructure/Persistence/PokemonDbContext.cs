@@ -196,6 +196,12 @@ public sealed class PokemonDbContext(DbContextOptions<PokemonDbContext> options)
                 tableBuilder.HasCheckConstraint(
                     "ck_battles_current_turn_number",
                     "\"current_turn_number\" >= 1");
+                tableBuilder.HasCheckConstraint(
+                    "ck_battles_outcome_consistency",
+                    "(\"winner_my_pokemon_id\" IS NULL AND \"loser_my_pokemon_id\" IS NULL) OR (\"winner_my_pokemon_id\" IS NOT NULL AND \"loser_my_pokemon_id\" IS NOT NULL AND \"winner_my_pokemon_id\" <> \"loser_my_pokemon_id\")");
+                tableBuilder.HasCheckConstraint(
+                    "ck_battles_turn_state_consistency",
+                    "(\"status\" = 'Finished' AND \"next_attacker_my_pokemon_id\" IS NULL AND \"winner_my_pokemon_id\" IS NOT NULL AND \"loser_my_pokemon_id\" IS NOT NULL) OR (\"status\" IN ('Created', 'InProgress') AND \"next_attacker_my_pokemon_id\" IS NOT NULL AND \"winner_my_pokemon_id\" IS NULL AND \"loser_my_pokemon_id\" IS NULL)");
             });
 
             entity.HasKey(battle => battle.Id);
@@ -213,7 +219,15 @@ public sealed class PokemonDbContext(DbContextOptions<PokemonDbContext> options)
 
             entity.Property(battle => battle.NextAttackerMyPokemonId)
                 .HasColumnName("next_attacker_my_pokemon_id")
-                .IsRequired();
+                .IsRequired(false);
+
+            entity.Property(battle => battle.WinnerMyPokemonId)
+                .HasColumnName("winner_my_pokemon_id")
+                .IsRequired(false);
+
+            entity.Property(battle => battle.LoserMyPokemonId)
+                .HasColumnName("loser_my_pokemon_id")
+                .IsRequired(false);
 
             entity.Navigation(battle => battle.Combatants)
                 .UsePropertyAccessMode(PropertyAccessMode.Field);

@@ -10,9 +10,9 @@ internal static class BattleMapping
             battle.Id,
             battle.Status.ToString(),
             battle.CurrentTurnNumber,
-            battle.Status == Domain.Battles.BattleStatus.Finished
-                ? null
-                : battle.NextAttackerMyPokemonId,
+            battle.NextAttackerMyPokemonId,
+            battle.WinnerMyPokemonId,
+            battle.LoserMyPokemonId,
             battle.Combatants
                 .OrderBy(combatant => combatant.SlotNumber)
                 .Select(combatant => new BattleCombatantResponse(

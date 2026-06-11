@@ -31,6 +31,8 @@ public sealed class GetBattleStateQueryHandlerTests
         Assert.Equal("Created", result.Status);
         Assert.Equal(1, result.CurrentTurnNumber);
         Assert.NotNull(result.NextAttackerMyPokemonId);
+        Assert.Null(result.WinnerMyPokemonId);
+        Assert.Null(result.LoserMyPokemonId);
         Assert.Empty(result.History);
         Assert.Equal(2, result.Combatants.Count);
     }
@@ -75,6 +77,8 @@ public sealed class GetBattleStateQueryHandlerTests
         Assert.Equal("InProgress", result.Status);
         Assert.Equal(2, result.CurrentTurnNumber);
         Assert.Equal(secondMyPokemonId, result.NextAttackerMyPokemonId);
+        Assert.Null(result.WinnerMyPokemonId);
+        Assert.Null(result.LoserMyPokemonId);
         var phase = Assert.Single(result.History);
         Assert.Equal(1, phase.SequenceNumber);
         Assert.Equal(moveId, phase.MoveId);
@@ -121,6 +125,8 @@ public sealed class GetBattleStateQueryHandlerTests
 
         Assert.Equal("Finished", result.Status);
         Assert.Null(result.NextAttackerMyPokemonId);
+        Assert.Equal(firstMyPokemonId, result.WinnerMyPokemonId);
+        Assert.Equal(secondMyPokemonId, result.LoserMyPokemonId);
         Assert.Single(result.History);
     }
 

@@ -907,6 +907,8 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal("Created", payload.Status);
         Assert.Equal(1, payload.CurrentTurnNumber);
         Assert.Equal(firstMyPokemon.Id, payload.NextAttackerMyPokemonId);
+        Assert.Null(payload.WinnerMyPokemonId);
+        Assert.Null(payload.LoserMyPokemonId);
         Assert.Collection(
             payload.Combatants,
             first =>
@@ -931,6 +933,8 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal("Created", storedBattle.Status.ToString());
         Assert.Equal(1, storedBattle.CurrentTurnNumber);
         Assert.Equal(firstMyPokemon.Id, storedBattle.NextAttackerMyPokemonId);
+        Assert.Null(storedBattle.WinnerMyPokemonId);
+        Assert.Null(storedBattle.LoserMyPokemonId);
 
         var storedCombatants = await dbContext.BattleCombatants
             .Where(combatant => combatant.BattleId == payload.Id)
@@ -967,6 +971,8 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal("Created", payload.Status);
         Assert.Equal(1, payload.CurrentTurnNumber);
         Assert.Equal(firstMyPokemon.Id, payload.NextAttackerMyPokemonId);
+        Assert.Null(payload.WinnerMyPokemonId);
+        Assert.Null(payload.LoserMyPokemonId);
         Assert.Empty(payload.History);
         Assert.Equal(2, payload.Combatants.Count);
     }
@@ -1012,6 +1018,8 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal("InProgress", payload.Status);
         Assert.Equal(2, payload.CurrentTurnNumber);
         Assert.Equal(secondMyPokemon.Id, payload.NextAttackerMyPokemonId);
+        Assert.Null(payload.WinnerMyPokemonId);
+        Assert.Null(payload.LoserMyPokemonId);
         var phase = Assert.Single(payload.History);
         Assert.Equal(1, phase.SequenceNumber);
         Assert.Equal(firstMyPokemon.Id, phase.AttackerMyPokemonId);
@@ -1073,6 +1081,8 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal("Finished", payload.Status);
         Assert.Equal(1, payload.CurrentTurnNumber);
         Assert.Null(payload.NextAttackerMyPokemonId);
+        Assert.Equal(firstMyPokemon.Id, payload.WinnerMyPokemonId);
+        Assert.Equal(secondMyPokemon.Id, payload.LoserMyPokemonId);
         Assert.Single(payload.History);
         Assert.Equal(0, payload.Combatants.Single(item => item.MyPokemonId == secondMyPokemon.Id).CurrentHealthPoints);
     }
@@ -1197,6 +1207,8 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal("InProgress", payload.Battle.Status);
         Assert.Equal(2, payload.Battle.CurrentTurnNumber);
         Assert.Equal(defender.Id, payload.Battle.NextAttackerMyPokemonId);
+        Assert.Null(payload.Battle.WinnerMyPokemonId);
+        Assert.Null(payload.Battle.LoserMyPokemonId);
         Assert.Equal("Close Combat", payload.DamageCalculation.MoveName);
         Assert.Equal("Physical", payload.DamageCalculation.MoveCategory);
         Assert.Equal(211, payload.DamageCalculation.Damage);
@@ -1347,6 +1359,8 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal("Finished", payload.Battle.Status);
         Assert.Equal(1, payload.Battle.CurrentTurnNumber);
         Assert.Null(payload.Battle.NextAttackerMyPokemonId);
+        Assert.Equal(attacker.Id, payload.Battle.WinnerMyPokemonId);
+        Assert.Equal(defender.Id, payload.Battle.LoserMyPokemonId);
         Assert.Equal(180, payload.DamageCalculation.Damage);
         Assert.Equal(0, payload.DamageCalculation.DefenderRemainingHealthPoints);
         Assert.Equal(0, payload.Battle.Combatants.Single(item => item.MyPokemonId == defender.Id).CurrentHealthPoints);
@@ -1357,6 +1371,8 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         var statePayload = await stateResponse.Content.ReadFromJsonAsync<BattleContract>();
         Assert.NotNull(statePayload);
         Assert.Equal("Finished", statePayload.Status);
+        Assert.Equal(attacker.Id, statePayload.WinnerMyPokemonId);
+        Assert.Equal(defender.Id, statePayload.LoserMyPokemonId);
         Assert.Equal(0, statePayload.Combatants.Single(item => item.MyPokemonId == defender.Id).CurrentHealthPoints);
     }
 

@@ -79,6 +79,8 @@ public sealed class ExecuteBattlePhaseCommandHandlerTests
         Assert.Equal("InProgress", result.Battle.Status);
         Assert.Equal(2, result.Battle.CurrentTurnNumber);
         Assert.Equal(defender.Id, result.Battle.NextAttackerMyPokemonId);
+        Assert.Null(result.Battle.WinnerMyPokemonId);
+        Assert.Null(result.Battle.LoserMyPokemonId);
         Assert.Equal(140, attacker.CurrentHealthPoints);
         Assert.Equal(100, defender.CurrentHealthPoints);
         var phase = Assert.Single(result.Battle.History);
@@ -267,6 +269,8 @@ public sealed class ExecuteBattlePhaseCommandHandlerTests
         Assert.Equal("Finished", result.Battle.Status);
         Assert.Equal(1, result.Battle.CurrentTurnNumber);
         Assert.Null(result.Battle.NextAttackerMyPokemonId);
+        Assert.Equal(attacker.Id, result.Battle.WinnerMyPokemonId);
+        Assert.Equal(defender.Id, result.Battle.LoserMyPokemonId);
         Assert.Equal(0, defender.CurrentHealthPoints);
         Assert.Equal(0, result.Battle.Combatants.Single(item => item.MyPokemonId == defender.Id).CurrentHealthPoints);
         await unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());

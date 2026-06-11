@@ -30,6 +30,8 @@ public sealed class CreateBattleCommandHandlerTests
         Assert.Equal("Created", result.Status);
         Assert.Equal(1, result.CurrentTurnNumber);
         Assert.Equal(firstMyPokemon.Id, result.NextAttackerMyPokemonId);
+        Assert.Null(result.WinnerMyPokemonId);
+        Assert.Null(result.LoserMyPokemonId);
         Assert.Collection(
             result.Combatants,
             first => Assert.Equal(firstMyPokemon.Id, first.MyPokemonId),

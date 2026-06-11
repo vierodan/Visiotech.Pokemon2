@@ -24,6 +24,8 @@ public sealed class BattleTests
         Assert.Equal(BattleStatus.Created, battle.Status);
         Assert.Equal(1, battle.CurrentTurnNumber);
         Assert.Equal(firstMyPokemonId, battle.NextAttackerMyPokemonId);
+        Assert.Null(battle.WinnerMyPokemonId);
+        Assert.Null(battle.LoserMyPokemonId);
         Assert.Collection(
             battle.Combatants.OrderBy(combatant => combatant.SlotNumber),
             first =>
@@ -108,6 +110,8 @@ public sealed class BattleTests
         Assert.Equal(BattleStatus.InProgress, battle.Status);
         Assert.Equal(2, battle.CurrentTurnNumber);
         Assert.Equal(secondMyPokemonId, battle.NextAttackerMyPokemonId);
+        Assert.Null(battle.WinnerMyPokemonId);
+        Assert.Null(battle.LoserMyPokemonId);
         Assert.Single(battle.Phases);
         Assert.Equal(140, battle.Combatants.Single(item => item.MyPokemonId == firstMyPokemonId).CurrentHealthPoints);
         Assert.Equal(100, battle.Combatants.Single(item => item.MyPokemonId == secondMyPokemonId).CurrentHealthPoints);
@@ -144,7 +148,43 @@ public sealed class BattleTests
 
         Assert.Equal(BattleStatus.Finished, battle.Status);
         Assert.Equal(1, battle.CurrentTurnNumber);
+        Assert.Null(battle.NextAttackerMyPokemonId);
+        Assert.Equal(firstMyPokemonId, battle.WinnerMyPokemonId);
+        Assert.Equal(secondMyPokemonId, battle.LoserMyPokemonId);
         Assert.Equal(0, battle.Combatants.Single(item => item.MyPokemonId == secondMyPokemonId).CurrentHealthPoints);
         Assert.Single(battle.Phases);
+    }
+
+    [Fact]
+    public void RecordPhase_Should_Reject_Leaving_Battle_Open_When_Defender_Reaches_Zero_Health()
+    {
+        var firstMyPokemonId = Guid.NewGuid();
+        var secondMyPokemonId = Guid.NewGuid();
+        var battle = Battle.Create(
+            Guid.NewGuid(),
+            firstMyPokemonId,
+            140,
+            160,
+            secondMyPokemonId,
+            180,
+            200);
+
+        var action = () => battle.RecordPhase(new BattlePhaseRegistration(
+            1,
+            firstMyPokemonId,
+            secondMyPokemonId,
+            Guid.NewGuid(),
+            "Close Combat",
+            100,
+            [new BattlePhaseEffectivenessInput(PokemonType.Normal, 2m)],
+            2m,
+            180,
+            140,
+            0,
+            secondMyPokemonId,
+            false));
+
+        var exception = Assert.Throws<DomainException>(action);
+        Assert.Contains("must finish", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -15,6 +15,8 @@ public static class ApiMappings
             response.Status,
             response.CurrentTurnNumber,
             response.NextAttackerMyPokemonId,
+            response.WinnerMyPokemonId,
+            response.LoserMyPokemonId,
             response.Combatants.Select(item => item.ToContract()).ToArray(),
             response.History.Select(item => item.ToContract()).ToArray());
 

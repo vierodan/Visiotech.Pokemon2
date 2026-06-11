@@ -5,5 +5,7 @@ public sealed record BattleResponse(
     string Status,
     int CurrentTurnNumber,
     Guid? NextAttackerMyPokemonId,
+    Guid? WinnerMyPokemonId,
+    Guid? LoserMyPokemonId,
     IReadOnlyCollection<BattleCombatantResponse> Combatants,
     IReadOnlyCollection<BattlePhaseResponse> History);

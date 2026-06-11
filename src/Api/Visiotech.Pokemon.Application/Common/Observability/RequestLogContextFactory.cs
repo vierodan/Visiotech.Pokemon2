@@ -188,6 +188,8 @@ internal static class RequestLogContextFactory
                 battle.Status,
                 battle.CurrentTurnNumber,
                 battle.NextAttackerMyPokemonId,
+                battle.WinnerMyPokemonId,
+                battle.LoserMyPokemonId,
                 CombatantCount = battle.Combatants.Count,
                 HistoryCount = battle.History.Count
             },
@@ -197,6 +199,8 @@ internal static class RequestLogContextFactory
                 execution.Battle.Status,
                 execution.Battle.CurrentTurnNumber,
                 execution.Battle.NextAttackerMyPokemonId,
+                execution.Battle.WinnerMyPokemonId,
+                execution.Battle.LoserMyPokemonId,
                 HistoryCount = execution.Battle.History.Count,
                 execution.DamageCalculation.MoveId,
                 execution.DamageCalculation.RandomFactor,

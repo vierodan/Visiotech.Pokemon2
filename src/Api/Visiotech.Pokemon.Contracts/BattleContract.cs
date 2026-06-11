@@ -5,5 +5,7 @@ public sealed record BattleContract(
     string Status,
     int CurrentTurnNumber,
     Guid? NextAttackerMyPokemonId,
+    Guid? WinnerMyPokemonId,
+    Guid? LoserMyPokemonId,
     IReadOnlyCollection<BattleCombatantContract> Combatants,
     IReadOnlyCollection<BattlePhaseContract> History);

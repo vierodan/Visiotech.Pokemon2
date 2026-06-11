@@ -31,9 +31,17 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
                 .HasColumnType("integer")
                 .HasColumnName("current_turn_number");
 
-            b.Property<Guid>("NextAttackerMyPokemonId")
+            b.Property<Guid?>("LoserMyPokemonId")
+                .HasColumnType("uuid")
+                .HasColumnName("loser_my_pokemon_id");
+
+            b.Property<Guid?>("NextAttackerMyPokemonId")
                 .HasColumnType("uuid")
                 .HasColumnName("next_attacker_my_pokemon_id");
+
+            b.Property<Guid?>("WinnerMyPokemonId")
+                .HasColumnType("uuid")
+                .HasColumnName("winner_my_pokemon_id");
 
             b.Property<string>("Status")
                 .IsRequired()
@@ -46,7 +54,9 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
             b.ToTable("battles", "pokemon2", t =>
             {
                 t.HasCheckConstraint("ck_battles_current_turn_number", "\"current_turn_number\" >= 1");
+                t.HasCheckConstraint("ck_battles_outcome_consistency", "(\"winner_my_pokemon_id\" IS NULL AND \"loser_my_pokemon_id\" IS NULL) OR (\"winner_my_pokemon_id\" IS NOT NULL AND \"loser_my_pokemon_id\" IS NOT NULL AND \"winner_my_pokemon_id\" <> \"loser_my_pokemon_id\")");
                 t.HasCheckConstraint("ck_battles_status", "\"status\" IN ('Created', 'InProgress', 'Finished')");
+                t.HasCheckConstraint("ck_battles_turn_state_consistency", "(\"status\" = 'Finished' AND \"next_attacker_my_pokemon_id\" IS NULL AND \"winner_my_pokemon_id\" IS NOT NULL AND \"loser_my_pokemon_id\" IS NOT NULL) OR (\"status\" IN ('Created', 'InProgress') AND \"next_attacker_my_pokemon_id\" IS NOT NULL AND \"winner_my_pokemon_id\" IS NULL AND \"loser_my_pokemon_id\" IS NULL)");
             });
         });
 

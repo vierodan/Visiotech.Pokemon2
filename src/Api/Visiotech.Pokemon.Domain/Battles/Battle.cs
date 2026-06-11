@@ -18,7 +18,9 @@ public sealed class Battle : AggregateRoot<Guid>
 
     public BattleStatus Status { get; private set; }
     public int CurrentTurnNumber { get; private set; }
-    public Guid NextAttackerMyPokemonId { get; private set; }
+    public Guid? NextAttackerMyPokemonId { get; private set; }
+    public Guid? WinnerMyPokemonId { get; private set; }
+    public Guid? LoserMyPokemonId { get; private set; }
     public IReadOnlyCollection<BattleCombatant> Combatants => _combatants.AsReadOnly();
     public IReadOnlyCollection<BattlePhase> Phases => _phases.AsReadOnly();
 
@@ -136,10 +138,23 @@ public sealed class Battle : AggregateRoot<Guid>
 
         _phases.Add(phase);
 
+        if (registration.DefenderRemainingHealthPoints == 0 && !registration.FinishesBattle)
+        {
+            throw new DomainException("Battle must finish when a defender reaches 0 current health points.");
+        }
+
         if (registration.FinishesBattle)
         {
+            if (registration.DefenderRemainingHealthPoints != 0)
+            {
+                throw new DomainException("Finished battles require the defender to have 0 current health points.");
+            }
+
             Status = BattleStatus.Finished;
             CurrentTurnNumber = registration.SequenceNumber;
+            NextAttackerMyPokemonId = null;
+            WinnerMyPokemonId = attacker.MyPokemonId;
+            LoserMyPokemonId = defender.MyPokemonId;
             return;
         }
 
@@ -156,5 +171,7 @@ public sealed class Battle : AggregateRoot<Guid>
         Status = BattleStatus.InProgress;
         CurrentTurnNumber = registration.SequenceNumber + 1;
         NextAttackerMyPokemonId = registration.NextAttackerMyPokemonId.Value;
+        WinnerMyPokemonId = null;
+        LoserMyPokemonId = null;
     }
 }
