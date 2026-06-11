@@ -7,6 +7,7 @@ namespace Visiotech.Pokemon.Infrastructure.Persistence;
 
 public sealed class DatabaseInitializer(
     IServiceScopeFactory serviceScopeFactory,
+    IOptions<PersistenceOptions> persistenceOptions,
     IOptions<PokemonSeedOptions> seedOptions,
     ILogger<DatabaseInitializer> logger)
 {
@@ -16,12 +17,24 @@ public sealed class DatabaseInitializer(
         var dbContext = scope.ServiceProvider.GetRequiredService<PokemonDbContext>();
 
         logger.LogInformation(
-            "Initializing persistence with provider {Provider}. ApplyMvpRoster: {ApplyMvpRoster}",
+            "Initializing persistence with configured provider {ConfiguredProvider} and EF provider {EfProvider}. ApplyMvpRoster: {ApplyMvpRoster}",
+            persistenceOptions.Value.Provider ?? PersistenceProvider.Postgres.ToString(),
             dbContext.Database.ProviderName,
             seedOptions.Value.ApplyMvpRoster);
 
-        logger.LogInformation("Applying pending Entity Framework migrations.");
-        await dbContext.Database.MigrateAsync(cancellationToken);
+        if (string.Equals(
+                persistenceOptions.Value.Provider,
+                nameof(PersistenceProvider.InMemory),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogInformation("Ensuring in-memory database is created.");
+            await dbContext.Database.EnsureCreatedAsync(cancellationToken);
+        }
+        else
+        {
+            logger.LogInformation("Applying pending Entity Framework migrations.");
+            await dbContext.Database.MigrateAsync(cancellationToken);
+        }
 
         if (!seedOptions.Value.ApplyMvpRoster)
         {

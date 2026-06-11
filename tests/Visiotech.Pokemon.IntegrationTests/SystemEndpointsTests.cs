@@ -10,6 +10,7 @@ using Visiotech.Pokemon.Infrastructure.Persistence;
 
 namespace Visiotech.Pokemon.IntegrationTests;
 
+[Collection(IntegrationTestCollection.Name)]
 public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFactory>, IAsyncLifetime
 {
     private readonly HttpClient _client;
