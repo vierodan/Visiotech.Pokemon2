@@ -1,5 +1,6 @@
 using Visiotech.Pokemon.Application.Common.Models;
 using Visiotech.Pokemon.Application.Features.Battles.Commands.CreateBattle;
+using Visiotech.Pokemon.Application.Features.Battles.Queries.GetBattleState;
 using Visiotech.Pokemon.Application.Features.Damage.Queries.CalculateMoveDamage;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Commands.CreateMyPokemon;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Commands.DeleteMyPokemon;
@@ -32,6 +33,10 @@ internal static class RequestLogContextFactory
             {
                 command.FirstMyPokemonId,
                 command.SecondMyPokemonId
+            },
+            GetBattleStateQuery query => new
+            {
+                query.Id
             },
             CalculateMoveDamageQuery query => new
             {
@@ -176,7 +181,8 @@ internal static class RequestLogContextFactory
                 battle.Status,
                 battle.CurrentTurnNumber,
                 battle.NextAttackerMyPokemonId,
-                CombatantCount = battle.Combatants.Count
+                CombatantCount = battle.Combatants.Count,
+                HistoryCount = battle.History.Count
             },
             MoveDamageCalculationResponse damage => new
             {

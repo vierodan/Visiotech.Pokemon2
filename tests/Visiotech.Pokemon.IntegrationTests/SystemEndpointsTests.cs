@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Visiotech.Pokemon.Application.Abstractions.Randomization;
+using Visiotech.Pokemon.Domain.Battles;
+using Visiotech.Pokemon.Domain.Pokemons;
 using Visiotech.Pokemon.Application.Abstractions.Persistence;
 using Visiotech.Pokemon.Contracts;
 using Visiotech.Pokemon.Infrastructure.Persistence;
@@ -938,6 +940,154 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal(2, storedCombatants.Length);
         Assert.Equal(firstMyPokemon.Id, storedCombatants[0].MyPokemonId);
         Assert.Equal(secondMyPokemon.Id, storedCombatants[1].MyPokemonId);
+    }
+
+    [PostgresFact]
+    public async Task GetBattleState_Should_Return_New_Battle_With_Empty_History()
+    {
+        var machamp = await CreateSpeciesAsync("Machamp", ["Fighting"], 90, 130, 80, 65, 85, 55);
+        var snorlax = await CreateSpeciesAsync("Snorlax", ["Normal"], 160, 110, 65, 65, 110, 30);
+        var closeCombat = await CreateMoveAsync("Close Combat", "Fighting", "Physical", 120);
+        var protect = await CreateMoveAsync("Protect", "Normal", "Status", 0);
+
+        await AssociateLearnableMovesAsync(machamp.Id, closeCombat.Id);
+        await AssociateLearnableMovesAsync(snorlax.Id, protect.Id);
+
+        var firstMyPokemon = await CreateMyPokemonAsync(machamp.Id, 50, 140, 160, closeCombat.Id);
+        var secondMyPokemon = await CreateMyPokemonAsync(snorlax.Id, 55, 220, 250, protect.Id);
+        var battle = await CreateBattleAsync(firstMyPokemon.Id, secondMyPokemon.Id);
+
+        var response = await _client.GetAsync($"/api/v1/battles/{battle.Id}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<BattleContract>();
+        Assert.NotNull(payload);
+        Assert.Equal(battle.Id, payload.Id);
+        Assert.Equal("Created", payload.Status);
+        Assert.Equal(1, payload.CurrentTurnNumber);
+        Assert.Equal(firstMyPokemon.Id, payload.NextAttackerMyPokemonId);
+        Assert.Empty(payload.History);
+        Assert.Equal(2, payload.Combatants.Count);
+    }
+
+    [PostgresFact]
+    public async Task GetBattleState_Should_Return_InProgress_Battle_With_History()
+    {
+        var machamp = await CreateSpeciesAsync("Machamp", ["Fighting"], 90, 130, 80, 65, 85, 55);
+        var snorlax = await CreateSpeciesAsync("Snorlax", ["Normal"], 160, 110, 65, 65, 110, 30);
+        var closeCombat = await CreateMoveAsync("Close Combat", "Fighting", "Physical", 120);
+        var protect = await CreateMoveAsync("Protect", "Normal", "Status", 0);
+
+        await AssociateLearnableMovesAsync(machamp.Id, closeCombat.Id);
+        await AssociateLearnableMovesAsync(snorlax.Id, protect.Id);
+
+        var firstMyPokemon = await CreateMyPokemonAsync(machamp.Id, 50, 140, 160, closeCombat.Id);
+        var secondMyPokemon = await CreateMyPokemonAsync(snorlax.Id, 55, 220, 250, protect.Id);
+        var battle = await CreateBattleAsync(firstMyPokemon.Id, secondMyPokemon.Id);
+
+        await RecordBattlePhaseAsync(
+            battle.Id,
+            new BattlePhaseRegistration(
+                1,
+                firstMyPokemon.Id,
+                secondMyPokemon.Id,
+                closeCombat.Id,
+                "Close Combat",
+                91,
+                [new BattlePhaseEffectivenessInput(PokemonType.Normal, 2m)],
+                2m,
+                80,
+                140,
+                140,
+                secondMyPokemon.Id,
+                false));
+
+        var response = await _client.GetAsync($"/api/v1/battles/{battle.Id}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<BattleContract>();
+        Assert.NotNull(payload);
+        Assert.Equal("InProgress", payload.Status);
+        Assert.Equal(2, payload.CurrentTurnNumber);
+        Assert.Equal(secondMyPokemon.Id, payload.NextAttackerMyPokemonId);
+        var phase = Assert.Single(payload.History);
+        Assert.Equal(1, phase.SequenceNumber);
+        Assert.Equal(firstMyPokemon.Id, phase.AttackerMyPokemonId);
+        Assert.Equal(secondMyPokemon.Id, phase.DefenderMyPokemonId);
+        Assert.Equal(closeCombat.Id, phase.MoveId);
+        Assert.Equal("Close Combat", phase.MoveName);
+        Assert.Equal(91, phase.RandomFactor);
+        Assert.Equal(2m, phase.TotalEffectiveness);
+        Assert.Equal(80, phase.Damage);
+        Assert.Equal(140, phase.AttackerRemainingHealthPoints);
+        Assert.Equal(140, phase.DefenderRemainingHealthPoints);
+        Assert.Collection(
+            phase.EffectivenessBreakdown,
+            item =>
+            {
+                Assert.Equal("Normal", item.DefenderType);
+                Assert.Equal(2m, item.Multiplier);
+            });
+    }
+
+    [PostgresFact]
+    public async Task GetBattleState_Should_Return_Finished_Battle_And_Null_Next_Attacker()
+    {
+        var machamp = await CreateSpeciesAsync("Machamp", ["Fighting"], 90, 130, 80, 65, 85, 55);
+        var snorlax = await CreateSpeciesAsync("Snorlax", ["Normal"], 160, 110, 65, 65, 110, 30);
+        var closeCombat = await CreateMoveAsync("Close Combat", "Fighting", "Physical", 120);
+        var protect = await CreateMoveAsync("Protect", "Normal", "Status", 0);
+
+        await AssociateLearnableMovesAsync(machamp.Id, closeCombat.Id);
+        await AssociateLearnableMovesAsync(snorlax.Id, protect.Id);
+
+        var firstMyPokemon = await CreateMyPokemonAsync(machamp.Id, 50, 140, 160, closeCombat.Id);
+        var secondMyPokemon = await CreateMyPokemonAsync(snorlax.Id, 55, 180, 180, protect.Id);
+        var battle = await CreateBattleAsync(firstMyPokemon.Id, secondMyPokemon.Id);
+
+        await RecordBattlePhaseAsync(
+            battle.Id,
+            new BattlePhaseRegistration(
+                1,
+                firstMyPokemon.Id,
+                secondMyPokemon.Id,
+                closeCombat.Id,
+                "Close Combat",
+                100,
+                [new BattlePhaseEffectivenessInput(PokemonType.Normal, 2m)],
+                2m,
+                180,
+                140,
+                0,
+                null,
+                true));
+
+        var response = await _client.GetAsync($"/api/v1/battles/{battle.Id}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<BattleContract>();
+        Assert.NotNull(payload);
+        Assert.Equal("Finished", payload.Status);
+        Assert.Equal(1, payload.CurrentTurnNumber);
+        Assert.Null(payload.NextAttackerMyPokemonId);
+        Assert.Single(payload.History);
+        Assert.Equal(0, payload.Combatants.Single(item => item.MyPokemonId == secondMyPokemon.Id).CurrentHealthPoints);
+    }
+
+    [PostgresFact]
+    public async Task GetBattleState_Should_Return_NotFound_When_Battle_Does_Not_Exist()
+    {
+        var response = await _client.GetAsync($"/api/v1/battles/{Guid.NewGuid()}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        await using var responseStream = await response.Content.ReadAsStreamAsync();
+        using var payload = await JsonDocument.ParseAsync(responseStream);
+        Assert.Equal("Not found", payload.RootElement.GetProperty("title").GetString());
+        Assert.Equal("id", payload.RootElement.GetProperty("target").GetString());
     }
 
     [PostgresFact]
@@ -1935,6 +2085,23 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
         var payload = await response.Content.ReadFromJsonAsync<BattleContract>();
         Assert.NotNull(payload);
         return payload;
+    }
+
+    private async Task RecordBattlePhaseAsync(
+        Guid battleId,
+        BattlePhaseRegistration registration)
+    {
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PokemonDbContext>();
+
+        var battle = await dbContext.Battles
+            .Include(item => item.Combatants)
+            .Include(item => item.Phases)
+                .ThenInclude(phase => phase.EffectivenessBreakdown)
+            .SingleAsync(item => item.Id == battleId);
+
+        battle.RecordPhase(registration);
+        await dbContext.SaveChangesAsync();
     }
 
     private async Task<MoveDamageCalculationContract> CalculateMoveDamageAsync(

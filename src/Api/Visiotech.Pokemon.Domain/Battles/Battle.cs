@@ -5,6 +5,7 @@ namespace Visiotech.Pokemon.Domain.Battles;
 public sealed class Battle : AggregateRoot<Guid>
 {
     private readonly List<BattleCombatant> _combatants = [];
+    private readonly List<BattlePhase> _phases = [];
 
     private Battle()
     {
@@ -19,6 +20,7 @@ public sealed class Battle : AggregateRoot<Guid>
     public int CurrentTurnNumber { get; private set; }
     public Guid NextAttackerMyPokemonId { get; private set; }
     public IReadOnlyCollection<BattleCombatant> Combatants => _combatants.AsReadOnly();
+    public IReadOnlyCollection<BattlePhase> Phases => _phases.AsReadOnly();
 
     public static Battle Create(
         Guid id,
@@ -80,5 +82,79 @@ public sealed class Battle : AggregateRoot<Guid>
             secondTotalHealthPoints));
 
         return battle;
+    }
+
+    public void RecordPhase(BattlePhaseRegistration registration)
+    {
+        ArgumentNullException.ThrowIfNull(registration);
+
+        if (Status == BattleStatus.Finished)
+        {
+            throw new DomainException("Finished battles cannot record additional phases.");
+        }
+
+        if (registration.SequenceNumber != CurrentTurnNumber)
+        {
+            throw new DomainException("Battle phase sequence number must match the current turn number.");
+        }
+
+        if (registration.AttackerMyPokemonId != NextAttackerMyPokemonId)
+        {
+            throw new DomainException("Battle phase attacker must match the next attacker configured for the battle.");
+        }
+
+        var attacker = _combatants.SingleOrDefault(combatant => combatant.MyPokemonId == registration.AttackerMyPokemonId)
+            ?? throw new DomainException("Battle phase attacker does not belong to the battle.");
+
+        var defender = _combatants.SingleOrDefault(combatant => combatant.MyPokemonId == registration.DefenderMyPokemonId)
+            ?? throw new DomainException("Battle phase defender does not belong to the battle.");
+
+        var effectivenessBreakdown = registration.EffectivenessBreakdown
+            .Select(item => BattlePhaseEffectiveness.Create(
+                Id,
+                registration.SequenceNumber,
+                item.DefenderType,
+                item.Multiplier))
+            .ToArray();
+
+        var phase = BattlePhase.Create(
+            Id,
+            registration.SequenceNumber,
+            registration.AttackerMyPokemonId,
+            registration.DefenderMyPokemonId,
+            registration.MoveId,
+            registration.MoveName,
+            registration.RandomFactor,
+            registration.TotalEffectiveness,
+            registration.Damage,
+            registration.AttackerRemainingHealthPoints,
+            registration.DefenderRemainingHealthPoints,
+            effectivenessBreakdown);
+
+        attacker.UpdateCurrentHealthPoints(registration.AttackerRemainingHealthPoints);
+        defender.UpdateCurrentHealthPoints(registration.DefenderRemainingHealthPoints);
+
+        _phases.Add(phase);
+
+        if (registration.FinishesBattle)
+        {
+            Status = BattleStatus.Finished;
+            CurrentTurnNumber = registration.SequenceNumber;
+            return;
+        }
+
+        if (registration.NextAttackerMyPokemonId is null)
+        {
+            throw new DomainException("Next attacker my pokemon id is required when the battle continues.");
+        }
+
+        if (_combatants.All(combatant => combatant.MyPokemonId != registration.NextAttackerMyPokemonId.Value))
+        {
+            throw new DomainException("Next attacker my pokemon id does not belong to the battle.");
+        }
+
+        Status = BattleStatus.InProgress;
+        CurrentTurnNumber = registration.SequenceNumber + 1;
+        NextAttackerMyPokemonId = registration.NextAttackerMyPokemonId.Value;
     }
 }

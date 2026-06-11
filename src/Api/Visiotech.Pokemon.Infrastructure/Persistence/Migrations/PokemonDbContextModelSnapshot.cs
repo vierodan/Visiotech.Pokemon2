@@ -88,6 +88,99 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
             });
         });
 
+        modelBuilder.Entity("Visiotech.Pokemon.Domain.Battles.BattlePhase", b =>
+        {
+            b.Property<Guid>("BattleId")
+                .HasColumnType("uuid")
+                .HasColumnName("battle_id");
+
+            b.Property<int>("SequenceNumber")
+                .HasColumnType("integer")
+                .HasColumnName("sequence_number");
+
+            b.Property<Guid>("AttackerMyPokemonId")
+                .HasColumnType("uuid")
+                .HasColumnName("attacker_my_pokemon_id");
+
+            b.Property<int>("AttackerRemainingHealthPoints")
+                .HasColumnType("integer")
+                .HasColumnName("attacker_remaining_health_points");
+
+            b.Property<int>("Damage")
+                .HasColumnType("integer")
+                .HasColumnName("damage");
+
+            b.Property<Guid>("DefenderMyPokemonId")
+                .HasColumnType("uuid")
+                .HasColumnName("defender_my_pokemon_id");
+
+            b.Property<int>("DefenderRemainingHealthPoints")
+                .HasColumnType("integer")
+                .HasColumnName("defender_remaining_health_points");
+
+            b.Property<Guid>("MoveId")
+                .HasColumnType("uuid")
+                .HasColumnName("move_id");
+
+            b.Property<string>("MoveName")
+                .IsRequired()
+                .HasMaxLength(100)
+                .HasColumnType("character varying(100)")
+                .HasColumnName("move_name");
+
+            b.Property<int>("RandomFactor")
+                .HasColumnType("integer")
+                .HasColumnName("random_factor");
+
+            b.Property<decimal>("TotalEffectiveness")
+                .HasColumnType("numeric(5,2)")
+                .HasColumnName("total_effectiveness");
+
+            b.HasKey("BattleId", "SequenceNumber");
+
+            b.HasIndex("AttackerMyPokemonId");
+
+            b.HasIndex("DefenderMyPokemonId");
+
+            b.HasIndex("MoveId");
+
+            b.ToTable("battle_phases", "pokemon2", t =>
+            {
+                t.HasCheckConstraint("ck_battle_phases_attacker_remaining_health_non_negative", "\"attacker_remaining_health_points\" >= 0");
+                t.HasCheckConstraint("ck_battle_phases_damage_non_negative", "\"damage\" >= 0");
+                t.HasCheckConstraint("ck_battle_phases_defender_remaining_health_non_negative", "\"defender_remaining_health_points\" >= 0");
+                t.HasCheckConstraint("ck_battle_phases_random_factor", "\"random_factor\" BETWEEN 85 AND 100");
+                t.HasCheckConstraint("ck_battle_phases_sequence_number", "\"sequence_number\" >= 1");
+            });
+        });
+
+        modelBuilder.Entity("Visiotech.Pokemon.Domain.Battles.BattlePhaseEffectiveness", b =>
+        {
+            b.Property<Guid>("BattleId")
+                .HasColumnType("uuid")
+                .HasColumnName("battle_id");
+
+            b.Property<int>("BattlePhaseSequenceNumber")
+                .HasColumnType("integer")
+                .HasColumnName("battle_phase_sequence_number");
+
+            b.Property<string>("DefenderType")
+                .HasMaxLength(20)
+                .HasColumnType("character varying(20)")
+                .HasColumnName("defender_type");
+
+            b.Property<decimal>("Multiplier")
+                .HasColumnType("numeric(5,2)")
+                .HasColumnName("multiplier");
+
+            b.HasKey("BattleId", "BattlePhaseSequenceNumber", "DefenderType");
+
+            b.ToTable("battle_phase_effectiveness", "pokemon2", t =>
+            {
+                t.HasCheckConstraint("ck_battle_phase_effectiveness_multiplier_non_negative", "\"multiplier\" >= 0");
+            });
+        });
+
         modelBuilder.Entity("Visiotech.Pokemon.Domain.Pokemons.MyPokemon", b =>
         {
             b.Property<Guid>("Id")
@@ -246,6 +339,24 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
                 .IsRequired();
         });
 
+        modelBuilder.Entity("Visiotech.Pokemon.Domain.Battles.BattlePhase", b =>
+        {
+            b.HasOne("Visiotech.Pokemon.Domain.Battles.Battle", null)
+                .WithMany("Phases")
+                .HasForeignKey("BattleId")
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired();
+        });
+
+        modelBuilder.Entity("Visiotech.Pokemon.Domain.Battles.BattlePhaseEffectiveness", b =>
+        {
+            b.HasOne("Visiotech.Pokemon.Domain.Battles.BattlePhase", null)
+                .WithMany("EffectivenessBreakdown")
+                .HasForeignKey("BattleId", "BattlePhaseSequenceNumber")
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired();
+        });
+
         modelBuilder.Entity("Visiotech.Pokemon.Domain.Pokemons.MyPokemon", b =>
         {
             b.HasOne("Visiotech.Pokemon.Domain.Pokemons.PokemonSpecies", null)
@@ -258,6 +369,15 @@ partial class PokemonDbContextModelSnapshot : ModelSnapshot
         modelBuilder.Entity("Visiotech.Pokemon.Domain.Battles.Battle", b =>
         {
             b.Navigation("Combatants")
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+            b.Navigation("Phases")
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+
+        modelBuilder.Entity("Visiotech.Pokemon.Domain.Battles.BattlePhase", b =>
+        {
+            b.Navigation("EffectivenessBreakdown")
                 .UsePropertyAccessMode(PropertyAccessMode.Field);
         });
 

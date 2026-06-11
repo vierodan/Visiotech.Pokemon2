@@ -28,6 +28,21 @@ public sealed class BattleCombatant
     public int CurrentHealthPoints { get; private set; }
     public int TotalHealthPoints { get; private set; }
 
+    public void UpdateCurrentHealthPoints(int currentHealthPoints)
+    {
+        if (currentHealthPoints < 0)
+        {
+            throw new DomainException("Battle combatant current health points cannot be negative.");
+        }
+
+        if (currentHealthPoints > TotalHealthPoints)
+        {
+            throw new DomainException("Battle combatant current health points cannot exceed total health points.");
+        }
+
+        CurrentHealthPoints = currentHealthPoints;
+    }
+
     public static BattleCombatant Create(
         Guid battleId,
         int slotNumber,

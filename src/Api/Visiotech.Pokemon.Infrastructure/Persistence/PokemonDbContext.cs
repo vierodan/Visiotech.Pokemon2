@@ -8,6 +8,8 @@ public sealed class PokemonDbContext(DbContextOptions<PokemonDbContext> options)
 {
     public DbSet<Battle> Battles => Set<Battle>();
     public DbSet<BattleCombatant> BattleCombatants => Set<BattleCombatant>();
+    public DbSet<BattlePhase> BattlePhases => Set<BattlePhase>();
+    public DbSet<BattlePhaseEffectiveness> BattlePhaseEffectivenessEntries => Set<BattlePhaseEffectiveness>();
     public DbSet<MyPokemon> MyPokemons => Set<MyPokemon>();
     public DbSet<MyPokemonMoveSlot> MyPokemonMoveSlots => Set<MyPokemonMoveSlot>();
     public DbSet<PokemonLearnableMove> PokemonLearnableMoves => Set<PokemonLearnableMove>();
@@ -215,6 +217,8 @@ public sealed class PokemonDbContext(DbContextOptions<PokemonDbContext> options)
 
             entity.Navigation(battle => battle.Combatants)
                 .UsePropertyAccessMode(PropertyAccessMode.Field);
+            entity.Navigation(battle => battle.Phases)
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
         });
 
         modelBuilder.Entity<BattleCombatant>(entity =>
@@ -262,6 +266,121 @@ public sealed class PokemonDbContext(DbContextOptions<PokemonDbContext> options)
             entity.HasIndex(combatant => combatant.MyPokemonId);
             entity.HasIndex(combatant => new { combatant.BattleId, combatant.MyPokemonId })
                 .IsUnique();
+        });
+
+        modelBuilder.Entity<BattlePhase>(entity =>
+        {
+            entity.ToTable("battle_phases", tableBuilder =>
+            {
+                tableBuilder.HasCheckConstraint("ck_battle_phases_sequence_number", "\"sequence_number\" >= 1");
+                tableBuilder.HasCheckConstraint("ck_battle_phases_random_factor", "\"random_factor\" BETWEEN 85 AND 100");
+                tableBuilder.HasCheckConstraint("ck_battle_phases_damage_non_negative", "\"damage\" >= 0");
+                tableBuilder.HasCheckConstraint("ck_battle_phases_attacker_remaining_health_non_negative", "\"attacker_remaining_health_points\" >= 0");
+                tableBuilder.HasCheckConstraint("ck_battle_phases_defender_remaining_health_non_negative", "\"defender_remaining_health_points\" >= 0");
+            });
+
+            entity.HasKey(phase => new { phase.BattleId, phase.SequenceNumber });
+
+            entity.Property(phase => phase.BattleId)
+                .HasColumnName("battle_id")
+                .IsRequired();
+
+            entity.Property(phase => phase.SequenceNumber)
+                .HasColumnName("sequence_number")
+                .IsRequired();
+
+            entity.Property(phase => phase.AttackerMyPokemonId)
+                .HasColumnName("attacker_my_pokemon_id")
+                .IsRequired();
+
+            entity.Property(phase => phase.DefenderMyPokemonId)
+                .HasColumnName("defender_my_pokemon_id")
+                .IsRequired();
+
+            entity.Property(phase => phase.MoveId)
+                .HasColumnName("move_id")
+                .IsRequired();
+
+            entity.Property(phase => phase.MoveName)
+                .HasColumnName("move_name")
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(phase => phase.RandomFactor)
+                .HasColumnName("random_factor")
+                .IsRequired();
+
+            entity.Property(phase => phase.TotalEffectiveness)
+                .HasColumnName("total_effectiveness")
+                .HasColumnType("numeric(5,2)")
+                .IsRequired();
+
+            entity.Property(phase => phase.Damage)
+                .HasColumnName("damage")
+                .IsRequired();
+
+            entity.Property(phase => phase.AttackerRemainingHealthPoints)
+                .HasColumnName("attacker_remaining_health_points")
+                .IsRequired();
+
+            entity.Property(phase => phase.DefenderRemainingHealthPoints)
+                .HasColumnName("defender_remaining_health_points")
+                .IsRequired();
+
+            entity.HasOne<Battle>()
+                .WithMany(battle => battle.Phases)
+                .HasForeignKey(phase => phase.BattleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(phase => phase.AttackerMyPokemonId);
+            entity.HasIndex(phase => phase.DefenderMyPokemonId);
+            entity.HasIndex(phase => phase.MoveId);
+
+            entity.Navigation(phase => phase.EffectivenessBreakdown)
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+
+        modelBuilder.Entity<BattlePhaseEffectiveness>(entity =>
+        {
+            entity.ToTable("battle_phase_effectiveness", tableBuilder =>
+            {
+                tableBuilder.HasCheckConstraint("ck_battle_phase_effectiveness_multiplier_non_negative", "\"multiplier\" >= 0");
+            });
+
+            entity.HasKey(effectiveness => new
+            {
+                effectiveness.BattleId,
+                effectiveness.BattlePhaseSequenceNumber,
+                effectiveness.DefenderType
+            });
+
+            entity.Property(effectiveness => effectiveness.BattleId)
+                .HasColumnName("battle_id")
+                .IsRequired();
+
+            entity.Property(effectiveness => effectiveness.BattlePhaseSequenceNumber)
+                .HasColumnName("battle_phase_sequence_number")
+                .IsRequired();
+
+            entity.Property(effectiveness => effectiveness.DefenderType)
+                .HasColumnName("defender_type")
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+
+            entity.Property(effectiveness => effectiveness.Multiplier)
+                .HasColumnName("multiplier")
+                .HasColumnType("numeric(5,2)")
+                .IsRequired();
+
+            entity.HasOne<BattlePhase>()
+                .WithMany(phase => phase.EffectivenessBreakdown)
+                .HasForeignKey(effectiveness => new
+                {
+                    effectiveness.BattleId,
+                    effectiveness.BattlePhaseSequenceNumber
+                })
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<PokemonLearnableMove>(entity =>

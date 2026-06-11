@@ -10,7 +10,9 @@ internal static class BattleMapping
             battle.Id,
             battle.Status.ToString(),
             battle.CurrentTurnNumber,
-            battle.NextAttackerMyPokemonId,
+            battle.Status == Domain.Battles.BattleStatus.Finished
+                ? null
+                : battle.NextAttackerMyPokemonId,
             battle.Combatants
                 .OrderBy(combatant => combatant.SlotNumber)
                 .Select(combatant => new BattleCombatantResponse(
@@ -18,5 +20,25 @@ internal static class BattleMapping
                     combatant.MyPokemonId,
                     combatant.CurrentHealthPoints,
                     combatant.TotalHealthPoints))
+                .ToArray(),
+            battle.Phases
+                .OrderBy(phase => phase.SequenceNumber)
+                .Select(phase => new BattlePhaseResponse(
+                    phase.SequenceNumber,
+                    phase.AttackerMyPokemonId,
+                    phase.DefenderMyPokemonId,
+                    phase.MoveId,
+                    phase.MoveName,
+                    phase.RandomFactor,
+                    phase.EffectivenessBreakdown
+                        .OrderBy(item => item.DefenderType.ToString(), StringComparer.Ordinal)
+                        .Select(item => new BattlePhaseEffectivenessResponse(
+                            item.DefenderType.ToString(),
+                            item.Multiplier))
+                        .ToArray(),
+                    phase.TotalEffectiveness,
+                    phase.Damage,
+                    phase.AttackerRemainingHealthPoints,
+                    phase.DefenderRemainingHealthPoints))
                 .ToArray());
 }

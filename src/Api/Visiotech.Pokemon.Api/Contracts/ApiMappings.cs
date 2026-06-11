@@ -15,7 +15,8 @@ public static class ApiMappings
             response.Status,
             response.CurrentTurnNumber,
             response.NextAttackerMyPokemonId,
-            response.Combatants.Select(item => item.ToContract()).ToArray());
+            response.Combatants.Select(item => item.ToContract()).ToArray(),
+            response.History.Select(item => item.ToContract()).ToArray());
 
     public static MoveDamageCalculationContract ToContract(this MoveDamageCalculationResponse response) =>
         new(
@@ -86,6 +87,25 @@ public static class ApiMappings
             response.MyPokemonId,
             response.CurrentHealthPoints,
             response.TotalHealthPoints);
+
+    public static BattlePhaseContract ToContract(this BattlePhaseResponse response) =>
+        new(
+            response.SequenceNumber,
+            response.AttackerMyPokemonId,
+            response.DefenderMyPokemonId,
+            response.MoveId,
+            response.MoveName,
+            response.RandomFactor,
+            response.EffectivenessBreakdown.Select(item => item.ToContract()).ToArray(),
+            response.TotalEffectiveness,
+            response.Damage,
+            response.AttackerRemainingHealthPoints,
+            response.DefenderRemainingHealthPoints);
+
+    public static BattlePhaseEffectivenessContract ToContract(this BattlePhaseEffectivenessResponse response) =>
+        new(
+            response.DefenderType,
+            response.Multiplier);
 
     public static PokemonMoveContract ToContract(this PokemonMoveResponse response) =>
         new(

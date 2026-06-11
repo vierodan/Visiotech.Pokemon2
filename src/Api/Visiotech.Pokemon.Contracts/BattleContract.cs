@@ -4,5 +4,6 @@ public sealed record BattleContract(
     Guid Id,
     string Status,
     int CurrentTurnNumber,
-    Guid NextAttackerMyPokemonId,
-    IReadOnlyCollection<BattleCombatantContract> Combatants);
+    Guid? NextAttackerMyPokemonId,
+    IReadOnlyCollection<BattleCombatantContract> Combatants,
+    IReadOnlyCollection<BattlePhaseContract> History);

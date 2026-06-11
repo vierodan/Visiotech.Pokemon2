@@ -6,6 +6,7 @@ using Visiotech.Pokemon.Api.Contracts;
 using Visiotech.Pokemon.Application.Abstractions.Messaging;
 using Visiotech.Pokemon.Application.Common.Models;
 using Visiotech.Pokemon.Application.Features.Battles.Commands.CreateBattle;
+using Visiotech.Pokemon.Application.Features.Battles.Queries.GetBattleState;
 using Visiotech.Pokemon.Contracts;
 
 namespace Visiotech.Pokemon.Api;
@@ -19,6 +20,12 @@ public static class BattleEndpoints
             .WithSummary("Creates a battle between exactly two playable pokemon instances.")
             .Produces<BattleContract>(StatusCodes.Status201Created)
             .ProducesValidationProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        endpoints.MapGet("/api/v1/battles/{id:guid}", GetBattleStateAsync)
+            .WithName("GetBattleState")
+            .WithSummary("Returns the current state and recorded history of a battle.")
+            .Produces<BattleContract>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         return endpoints;
@@ -36,5 +43,14 @@ public static class BattleEndpoints
             cancellationToken);
 
         return TypedResults.Created($"/api/v1/battles/{response.Id}", response.ToContract());
+    }
+
+    private static async Task<Ok<BattleContract>> GetBattleStateAsync(
+        Guid id,
+        IQueryHandler<GetBattleStateQuery, BattleResponse> handler,
+        CancellationToken cancellationToken)
+    {
+        var response = await handler.Handle(new GetBattleStateQuery(id), cancellationToken);
+        return TypedResults.Ok(response.ToContract());
     }
 }

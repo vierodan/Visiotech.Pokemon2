@@ -13,10 +13,14 @@ public sealed class BattleRepository(PokemonDbContext dbContext) : IBattleWriteR
         await dbContext.Battles
             .AsNoTracking()
             .Include(battle => battle.Combatants)
+            .Include(battle => battle.Phases)
+                .ThenInclude(phase => phase.EffectivenessBreakdown)
             .SingleOrDefaultAsync(battle => battle.Id == id, cancellationToken);
 
     public async Task<Battle?> GetForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
         await dbContext.Battles
             .Include(battle => battle.Combatants)
+            .Include(battle => battle.Phases)
+                .ThenInclude(phase => phase.EffectivenessBreakdown)
             .SingleOrDefaultAsync(battle => battle.Id == id, cancellationToken);
 }
