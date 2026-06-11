@@ -111,6 +111,16 @@ public sealed class Battle : AggregateRoot<Guid>
         var defender = _combatants.SingleOrDefault(combatant => combatant.MyPokemonId == registration.DefenderMyPokemonId)
             ?? throw new DomainException("Battle phase defender does not belong to the battle.");
 
+        if (registration.DefenderRemainingHealthPoints == 0 && !registration.FinishesBattle)
+        {
+            throw new DomainException("Battle must finish when a defender reaches 0 current health points.");
+        }
+
+        if (registration.FinishesBattle && registration.DefenderRemainingHealthPoints != 0)
+        {
+            throw new DomainException("Finished battles require the defender to have 0 current health points.");
+        }
+
         var effectivenessBreakdown = registration.EffectivenessBreakdown
             .Select(item => BattlePhaseEffectiveness.Create(
                 Id,
@@ -138,18 +148,8 @@ public sealed class Battle : AggregateRoot<Guid>
 
         _phases.Add(phase);
 
-        if (registration.DefenderRemainingHealthPoints == 0 && !registration.FinishesBattle)
-        {
-            throw new DomainException("Battle must finish when a defender reaches 0 current health points.");
-        }
-
         if (registration.FinishesBattle)
         {
-            if (registration.DefenderRemainingHealthPoints != 0)
-            {
-                throw new DomainException("Finished battles require the defender to have 0 current health points.");
-            }
-
             Status = BattleStatus.Finished;
             CurrentTurnNumber = registration.SequenceNumber;
             NextAttackerMyPokemonId = null;

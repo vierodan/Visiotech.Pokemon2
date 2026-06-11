@@ -23,22 +23,33 @@ internal static class BattleMapping
                 .ToArray(),
             battle.Phases
                 .OrderBy(phase => phase.SequenceNumber)
-                .Select(phase => new BattlePhaseResponse(
-                    phase.SequenceNumber,
-                    phase.AttackerMyPokemonId,
-                    phase.DefenderMyPokemonId,
-                    phase.MoveId,
-                    phase.MoveName,
-                    phase.RandomFactor,
-                    phase.EffectivenessBreakdown
-                        .OrderBy(item => item.DefenderType.ToString(), StringComparer.Ordinal)
-                        .Select(item => new BattlePhaseEffectivenessResponse(
-                            item.DefenderType.ToString(),
-                            item.Multiplier))
-                        .ToArray(),
-                    phase.TotalEffectiveness,
-                    phase.Damage,
-                    phase.AttackerRemainingHealthPoints,
-                    phase.DefenderRemainingHealthPoints))
+                .Select(ToPhaseResponse)
                 .ToArray());
+
+    public static BattleHistoryResponse ToHistoryResponse(Battle battle) =>
+        new(
+            battle.Id,
+            battle.Phases
+                .OrderBy(phase => phase.SequenceNumber)
+                .Select(ToPhaseResponse)
+                .ToArray());
+
+    private static BattlePhaseResponse ToPhaseResponse(BattlePhase phase) =>
+        new(
+            phase.SequenceNumber,
+            phase.AttackerMyPokemonId,
+            phase.DefenderMyPokemonId,
+            phase.MoveId,
+            phase.MoveName,
+            phase.RandomFactor,
+            phase.EffectivenessBreakdown
+                .OrderBy(item => item.DefenderType.ToString(), StringComparer.Ordinal)
+                .Select(item => new BattlePhaseEffectivenessResponse(
+                    item.DefenderType.ToString(),
+                    item.Multiplier))
+                .ToArray(),
+            phase.TotalEffectiveness,
+            phase.Damage,
+            phase.AttackerRemainingHealthPoints,
+            phase.DefenderRemainingHealthPoints);
 }

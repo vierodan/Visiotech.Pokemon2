@@ -5,6 +5,7 @@ using Visiotech.Pokemon.Application.Common.Models;
 using Visiotech.Pokemon.Application.Common.Observability;
 using Visiotech.Pokemon.Application.Features.Battles.Commands.CreateBattle;
 using Visiotech.Pokemon.Application.Features.Battles.Commands.ExecuteBattlePhase;
+using Visiotech.Pokemon.Application.Features.Battles.Queries.GetBattleHistory;
 using Visiotech.Pokemon.Application.Features.Battles.Queries.GetBattleState;
 using Visiotech.Pokemon.Application.Features.Damage;
 using Visiotech.Pokemon.Application.Features.Damage.Queries.CalculateMoveDamage;
@@ -39,6 +40,7 @@ public static class DependencyInjection
 
         AddLoggedCommandHandler<CreateBattleCommand, BattleResponse, CreateBattleCommandHandler>(services);
         AddLoggedCommandHandler<ExecuteBattlePhaseCommand, BattlePhaseExecutionResponse, ExecuteBattlePhaseCommandHandler>(services);
+        AddLoggedQueryHandler<GetBattleHistoryQuery, BattleHistoryResponse, GetBattleHistoryQueryHandler>(services);
         AddLoggedQueryHandler<GetBattleStateQuery, BattleResponse, GetBattleStateQueryHandler>(services);
         AddLoggedQueryHandler<CalculateMoveDamageQuery, MoveDamageCalculationResponse, CalculateMoveDamageQueryHandler>(services);
         AddLoggedQueryHandler<GetSystemInfoQuery, SystemInfoResponse, GetSystemInfoQueryHandler>(services);

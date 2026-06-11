@@ -1101,6 +1101,122 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
     }
 
     [PostgresFact]
+    public async Task GetBattleHistory_Should_Return_Empty_History_When_Battle_Has_No_Phases()
+    {
+        var machamp = await CreateSpeciesAsync("Machamp", ["Fighting"], 90, 130, 80, 65, 85, 55);
+        var snorlax = await CreateSpeciesAsync("Snorlax", ["Normal"], 160, 110, 65, 65, 110, 30);
+        var closeCombat = await CreateMoveAsync("Close Combat", "Fighting", "Physical", 120);
+        var bodySlam = await CreateMoveAsync("Body Slam", "Normal", "Physical", 85);
+
+        await AssociateLearnableMovesAsync(machamp.Id, closeCombat.Id);
+        await AssociateLearnableMovesAsync(snorlax.Id, bodySlam.Id);
+
+        var firstMyPokemon = await CreateMyPokemonAsync(machamp.Id, 50, 180, 180, closeCombat.Id);
+        var secondMyPokemon = await CreateMyPokemonAsync(snorlax.Id, 50, 250, 250, bodySlam.Id);
+        var battle = await CreateBattleAsync(firstMyPokemon.Id, secondMyPokemon.Id);
+
+        var response = await _client.GetAsync($"/api/v1/battles/{battle.Id}/phases");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<BattleHistoryContract>();
+        Assert.NotNull(payload);
+        Assert.Equal(battle.Id, payload.BattleId);
+        Assert.Empty(payload.Phases);
+    }
+
+    [PostgresFact]
+    public async Task GetBattleHistory_Should_Return_Multiple_Phases_Ordered_With_Effectiveness_Snapshots()
+    {
+        var venusaur = await CreateSpeciesAsync("Venusaur", ["Grass", "Poison"], 80, 82, 83, 100, 100, 80);
+        var charizard = await CreateSpeciesAsync("Charizard", ["Fire", "Flying"], 78, 84, 78, 109, 85, 100);
+        var solarBeam = await CreateMoveAsync("Solar Beam", "Grass", "Special", 120);
+        var flamethrower = await CreateMoveAsync("Flamethrower", "Fire", "Special", 90);
+
+        await AssociateLearnableMovesAsync(venusaur.Id, solarBeam.Id);
+        await AssociateLearnableMovesAsync(charizard.Id, flamethrower.Id);
+
+        var firstMyPokemon = await CreateMyPokemonAsync(venusaur.Id, 50, 220, 220, solarBeam.Id);
+        var secondMyPokemon = await CreateMyPokemonAsync(charizard.Id, 50, 220, 220, flamethrower.Id);
+        var battle = await CreateBattleAsync(firstMyPokemon.Id, secondMyPokemon.Id);
+
+        using var client = CreateClientWithDamageRandom(100);
+        await ExecuteBattlePhaseAsync(client, battle.Id, firstMyPokemon.Id, solarBeam.Id);
+        await ExecuteBattlePhaseAsync(client, battle.Id, secondMyPokemon.Id, flamethrower.Id);
+
+        var response = await client.GetAsync($"/api/v1/battles/{battle.Id}/phases");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<BattleHistoryContract>();
+        Assert.NotNull(payload);
+        Assert.Equal(battle.Id, payload.BattleId);
+        Assert.Collection(
+            payload.Phases,
+            first =>
+            {
+                Assert.Equal(1, first.SequenceNumber);
+                Assert.Equal(firstMyPokemon.Id, first.AttackerMyPokemonId);
+                Assert.Equal(secondMyPokemon.Id, first.DefenderMyPokemonId);
+                Assert.Equal(solarBeam.Id, first.MoveId);
+                Assert.Equal("Solar Beam", first.MoveName);
+                Assert.Equal(100, first.RandomFactor);
+                Assert.Equal(0.25m, first.TotalEffectiveness);
+                Assert.True(first.Damage > 0);
+                Assert.True(first.DefenderRemainingHealthPoints < 220);
+                Assert.Collection(
+                    first.EffectivenessBreakdown,
+                    item =>
+                    {
+                        Assert.Equal("Fire", item.DefenderType);
+                        Assert.Equal(0.5m, item.Multiplier);
+                    },
+                    item =>
+                    {
+                        Assert.Equal("Flying", item.DefenderType);
+                        Assert.Equal(0.5m, item.Multiplier);
+                    });
+            },
+            second =>
+            {
+                Assert.Equal(2, second.SequenceNumber);
+                Assert.Equal(secondMyPokemon.Id, second.AttackerMyPokemonId);
+                Assert.Equal(firstMyPokemon.Id, second.DefenderMyPokemonId);
+                Assert.Equal(flamethrower.Id, second.MoveId);
+                Assert.Equal("Flamethrower", second.MoveName);
+                Assert.Equal(100, second.RandomFactor);
+                Assert.Equal(2m, second.TotalEffectiveness);
+                Assert.True(second.Damage > 0);
+                Assert.True(second.DefenderRemainingHealthPoints < 220);
+                Assert.Collection(
+                    second.EffectivenessBreakdown,
+                    item =>
+                    {
+                        Assert.Equal("Grass", item.DefenderType);
+                        Assert.Equal(2m, item.Multiplier);
+                    },
+                    item =>
+                    {
+                        Assert.Equal("Poison", item.DefenderType);
+                        Assert.Equal(1m, item.Multiplier);
+                    });
+            });
+    }
+
+    [PostgresFact]
+    public async Task GetBattleHistory_Should_Return_NotFound_When_Battle_Does_Not_Exist()
+    {
+        var response = await _client.GetAsync($"/api/v1/battles/{Guid.NewGuid()}/phases");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        await using var responseStream = await response.Content.ReadAsStreamAsync();
+        using var payload = await JsonDocument.ParseAsync(responseStream);
+        Assert.Equal("Not found", payload.RootElement.GetProperty("title").GetString());
+        Assert.Equal("id", payload.RootElement.GetProperty("target").GetString());
+    }
+
+    [PostgresFact]
     public async Task CreateBattle_Should_Return_NotFound_When_First_MyPokemon_Does_Not_Exist()
     {
         var response = await _client.PostAsJsonAsync(

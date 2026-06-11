@@ -7,6 +7,7 @@ using Visiotech.Pokemon.Application.Abstractions.Messaging;
 using Visiotech.Pokemon.Application.Common.Models;
 using Visiotech.Pokemon.Application.Features.Battles.Commands.CreateBattle;
 using Visiotech.Pokemon.Application.Features.Battles.Commands.ExecuteBattlePhase;
+using Visiotech.Pokemon.Application.Features.Battles.Queries.GetBattleHistory;
 using Visiotech.Pokemon.Application.Features.Battles.Queries.GetBattleState;
 using Visiotech.Pokemon.Contracts;
 
@@ -34,6 +35,12 @@ public static class BattleEndpoints
             .WithSummary("Executes the next battle phase for a battle using an equipped move.")
             .Produces<BattlePhaseExecutionContract>(StatusCodes.Status200OK)
             .ProducesValidationProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        endpoints.MapGet("/api/v1/battles/{id:guid}/phases", GetBattleHistoryAsync)
+            .WithName("GetBattleHistory")
+            .WithSummary("Returns the ordered history of recorded battle phases.")
+            .Produces<BattleHistoryContract>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         return endpoints;
@@ -75,6 +82,15 @@ public static class BattleEndpoints
                 request.MoveId),
             cancellationToken);
 
+        return TypedResults.Ok(response.ToContract());
+    }
+
+    private static async Task<Ok<BattleHistoryContract>> GetBattleHistoryAsync(
+        Guid id,
+        IQueryHandler<GetBattleHistoryQuery, BattleHistoryResponse> handler,
+        CancellationToken cancellationToken)
+    {
+        var response = await handler.Handle(new GetBattleHistoryQuery(id), cancellationToken);
         return TypedResults.Ok(response.ToContract());
     }
 }

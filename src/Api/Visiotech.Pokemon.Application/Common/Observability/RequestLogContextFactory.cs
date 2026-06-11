@@ -1,6 +1,7 @@
 using Visiotech.Pokemon.Application.Common.Models;
 using Visiotech.Pokemon.Application.Features.Battles.Commands.CreateBattle;
 using Visiotech.Pokemon.Application.Features.Battles.Commands.ExecuteBattlePhase;
+using Visiotech.Pokemon.Application.Features.Battles.Queries.GetBattleHistory;
 using Visiotech.Pokemon.Application.Features.Battles.Queries.GetBattleState;
 using Visiotech.Pokemon.Application.Features.Damage.Queries.CalculateMoveDamage;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Commands.CreateMyPokemon;
@@ -42,6 +43,10 @@ internal static class RequestLogContextFactory
                 command.MoveId
             },
             GetBattleStateQuery query => new
+            {
+                query.Id
+            },
+            GetBattleHistoryQuery query => new
             {
                 query.Id
             },
@@ -207,6 +212,11 @@ internal static class RequestLogContextFactory
                 execution.DamageCalculation.TotalEffectiveness,
                 execution.DamageCalculation.Damage,
                 execution.DamageCalculation.DefenderRemainingHealthPoints
+            },
+            BattleHistoryResponse history => new
+            {
+                history.BattleId,
+                PhaseCount = history.Phases.Count
             },
             MoveDamageCalculationResponse damage => new
             {

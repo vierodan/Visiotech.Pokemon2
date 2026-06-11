@@ -186,5 +186,8 @@ public sealed class BattleTests
 
         var exception = Assert.Throws<DomainException>(action);
         Assert.Contains("must finish", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(BattleStatus.Created, battle.Status);
+        Assert.Empty(battle.Phases);
+        Assert.Equal(180, battle.Combatants.Single(item => item.MyPokemonId == secondMyPokemonId).CurrentHealthPoints);
     }
 }
