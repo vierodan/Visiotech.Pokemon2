@@ -7,4 +7,6 @@ public interface IMyPokemonWriteRepository
     Task AddAsync(MyPokemon myPokemon, CancellationToken cancellationToken);
 
     Task<MyPokemon?> GetForUpdateAsync(Guid id, CancellationToken cancellationToken);
+
+    void Remove(MyPokemon myPokemon);
 }

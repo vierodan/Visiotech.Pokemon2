@@ -939,6 +939,70 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
     }
 
     [PostgresFact]
+    public async Task DeleteMyPokemon_Should_Remove_Unused_Instance_And_Its_Equipped_Moves()
+    {
+        var charizard = await CreateSpeciesAsync("Charizard", ["Fire", "Flying"], 78, 84, 78, 109, 85, 100);
+        var flamethrower = await CreateMoveAsync("Flamethrower", "Fire", "Special", 90);
+        var fly = await CreateMoveAsync("Fly", "Flying", "Physical", 90);
+
+        await AssociateLearnableMovesAsync(charizard.Id, flamethrower.Id, fly.Id);
+        var myPokemon = await CreateMyPokemonAsync(charizard.Id, 50, 120, 150, flamethrower.Id, fly.Id);
+
+        var response = await _client.DeleteAsync($"/api/v1/my-pokemons/{myPokemon.Id}");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        var detailResponse = await _client.GetAsync($"/api/v1/my-pokemons/{myPokemon.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, detailResponse.StatusCode);
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PokemonDbContext>();
+        Assert.Equal(0, await dbContext.MyPokemons.CountAsync());
+        Assert.Equal(0, await dbContext.MyPokemonMoveSlots.CountAsync());
+    }
+
+    [PostgresFact]
+    public async Task DeleteMyPokemon_Should_Return_NotFound_When_Instance_Does_Not_Exist()
+    {
+        var response = await _client.DeleteAsync($"/api/v1/my-pokemons/{Guid.NewGuid()}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        await using var responseStream = await response.Content.ReadAsStreamAsync();
+        using var payload = await JsonDocument.ParseAsync(responseStream);
+        Assert.Equal("Not found", payload.RootElement.GetProperty("title").GetString());
+        Assert.Equal("id", payload.RootElement.GetProperty("target").GetString());
+    }
+
+    [PostgresFact]
+    public async Task DeleteMyPokemon_Should_Return_Validation_Problem_When_Instance_Participates_In_Active_Battle()
+    {
+        var machamp = await CreateSpeciesAsync("Machamp", ["Fighting"], 90, 130, 80, 65, 85, 55);
+        var closeCombat = await CreateMoveAsync("Close Combat", "Fighting", "Physical", 120);
+
+        await AssociateLearnableMovesAsync(machamp.Id, closeCombat.Id);
+        var myPokemon = await CreateMyPokemonAsync(machamp.Id, 50, 140, 160, closeCombat.Id);
+
+        using var blockingClient = CreateClientWithMyPokemonDeletionDependencies(
+            "My pokemon cannot be deleted because it participates in active battle 'battle-123'.");
+
+        var response = await blockingClient.DeleteAsync($"/api/v1/my-pokemons/{myPokemon.Id}");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        await using var responseStream = await response.Content.ReadAsStreamAsync();
+        using var payload = await JsonDocument.ParseAsync(responseStream);
+        Assert.True(payload.RootElement.TryGetProperty("errors", out var errors));
+        Assert.True(errors.TryGetProperty("dependencies", out var dependencyErrors));
+        Assert.Contains(
+            dependencyErrors.EnumerateArray().Select(static item => item.GetString()),
+            message => message == "My pokemon cannot be deleted because it participates in active battle 'battle-123'.");
+
+        var detailResponse = await _client.GetAsync($"/api/v1/my-pokemons/{myPokemon.Id}");
+        Assert.Equal(HttpStatusCode.OK, detailResponse.StatusCode);
+    }
+
+    [PostgresFact]
     public async Task GetPokemonsCatalog_Should_List_And_Get_Detail_After_Creating_Mvp_Roster()
     {
         foreach (var pokemonSpecies in PokemonMvpRosterSeed.GetSpecies())
@@ -1397,6 +1461,16 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
             }))
             .CreateClient();
 
+    private HttpClient CreateClientWithMyPokemonDeletionDependencies(params string[] blockingReasons) =>
+        _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IMyPokemonDeletionDependencyChecker>();
+                services.AddScoped<IMyPokemonDeletionDependencyChecker>(
+                    _ => new StubMyPokemonDeletionDependencyChecker(blockingReasons));
+            }))
+            .CreateClient();
+
     private sealed class StubPokemonSpeciesDeletionDependencyChecker(IReadOnlyCollection<string> blockingReasons)
         : IPokemonSpeciesDeletionDependencyChecker
     {
@@ -1411,6 +1485,15 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
     {
         public Task<IReadOnlyCollection<string>> GetBlockingReasonsAsync(
             Guid pokemonMoveId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(blockingReasons);
+    }
+
+    private sealed class StubMyPokemonDeletionDependencyChecker(IReadOnlyCollection<string> blockingReasons)
+        : IMyPokemonDeletionDependencyChecker
+    {
+        public Task<IReadOnlyCollection<string>> GetBlockingReasonsAsync(
+            Guid myPokemonId,
             CancellationToken cancellationToken) =>
             Task.FromResult(blockingReasons);
     }

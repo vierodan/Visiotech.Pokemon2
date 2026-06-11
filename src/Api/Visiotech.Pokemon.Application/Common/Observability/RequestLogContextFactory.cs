@@ -1,5 +1,6 @@
 using Visiotech.Pokemon.Application.Common.Models;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Commands.CreateMyPokemon;
+using Visiotech.Pokemon.Application.Features.MyPokemons.Commands.DeleteMyPokemon;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Queries.GetMyPokemonDetail;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Queries.GetMyPokemonsCatalog;
 using Visiotech.Pokemon.Application.Features.Moves.Commands.CreatePokemonMove;
@@ -80,6 +81,10 @@ internal static class RequestLogContextFactory
                 command.CurrentHealthPoints,
                 command.TotalHealthPoints,
                 command.EquippedMoveIds
+            },
+            DeleteMyPokemonCommand command => new
+            {
+                command.Id
             },
             GetMyPokemonsCatalogQuery query => new
             {

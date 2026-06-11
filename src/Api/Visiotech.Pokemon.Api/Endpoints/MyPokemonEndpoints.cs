@@ -6,6 +6,7 @@ using Visiotech.Pokemon.Api.Contracts;
 using Visiotech.Pokemon.Application.Abstractions.Messaging;
 using Visiotech.Pokemon.Application.Common.Models;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Commands.CreateMyPokemon;
+using Visiotech.Pokemon.Application.Features.MyPokemons.Commands.DeleteMyPokemon;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Commands.UpdateMyPokemon;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Queries.GetMyPokemonDetail;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Queries.GetMyPokemonsCatalog;
@@ -28,6 +29,13 @@ public static class MyPokemonEndpoints
             .WithName("UpdateMyPokemon")
             .WithSummary("Updates the mutable state of a playable pokemon instance.")
             .Produces<MyPokemonContract>(StatusCodes.Status200OK)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        endpoints.MapDelete("/api/v1/my-pokemons/{id:guid}", DeleteMyPokemonAsync)
+            .WithName("DeleteMyPokemon")
+            .WithSummary("Deletes a playable pokemon instance when it is not used by active dependencies.")
+            .Produces(StatusCodes.Status204NoContent)
             .ProducesValidationProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -79,6 +87,15 @@ public static class MyPokemonEndpoints
             cancellationToken);
 
         return TypedResults.Ok(response.ToContract());
+    }
+
+    private static async Task<NoContent> DeleteMyPokemonAsync(
+        Guid id,
+        ICommandHandler<DeleteMyPokemonCommand, Guid> handler,
+        CancellationToken cancellationToken)
+    {
+        await handler.Handle(new DeleteMyPokemonCommand(id), cancellationToken);
+        return TypedResults.NoContent();
     }
 
     private static async Task<Ok<MyPokemonCatalogContract>> GetMyPokemonsCatalogAsync(
