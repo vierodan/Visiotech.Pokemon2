@@ -2,229 +2,239 @@
 
 ## 1. Objetivo del documento
 
-Este documento traduce el fichero de requisitos `docs/requirements/POKÉMON 2.pdf` a un análisis funcional implementable para el MVP de la API Pokémon. El objetivo es convertir un enunciado breve en un contrato funcional claro para producto, backend y QA.
+Este documento describe los casos de uso funcionales implementados en la API del MVP Pokémon y mantiene la trazabilidad con los requisitos iniciales del fichero `docs/requirements/POKÉMON 2.pdf`.
 
-El alcance se ha construido a partir de:
+Su objetivo es servir como contrato común para producto, backend, QA y documentación técnica. Por tanto, el contenido refleja el comportamiento actual del código, no solo la intención inicial del requisito.
+
+El alcance se apoya en:
 
 - el PDF de requisitos
-- la restricción adicional del MVP: trabajar con 10 Pokémon
-- la fuente de catálogo de Pokémon: `https://pokemondb.net/pokedex/all`
-- la fuente de catálogo de movimientos: `https://pokemondb.net/move/all`
+- el catálogo MVP de 10 especies Pokémon
+- el catálogo MVP de 27 movimientos
+- la API HTTP implementada en `src/Api/Visiotech.Pokemon.Api`
+- las reglas de dominio implementadas en `src/Api/Visiotech.Pokemon.Domain`
+- los casos de aplicación implementados en `src/Api/Visiotech.Pokemon.Application`
 
-## 2. Resumen ejecutivo del alcance
+## 2. Estado funcional actual
 
-El MVP tiene tres bloques funcionales:
+El MVP implementa tres bloques funcionales:
 
-1. `Motor de daño`: dado un Pokémon atacante, un movimiento escogido y un Pokémon rival, el sistema debe devolver el daño calculado.
-2. `Pokédex API`: el sistema debe exponer CRUD y consultas sobre catálogo base de Pokémon, catálogo de movimientos y la colección de "Mis Pokémon" con hasta 4 movimientos equipados.
-3. `Combate`: el sistema debe mantener el estado de una partida entre 2 Pokémon adversarios y permitir avanzar el combate por fases hasta que los PS de uno de ellos lleguen a 0.
+1. `Pokédex API`: CRUD y consultas sobre especies base, movimientos, relaciones aprendibles y la colección de "Mis Pokémon".
+2. `Motor de daño`: cálculo de daño entre dos instancias jugables usando la fórmula del PDF, categoría del movimiento, tabla normativa de efectividad y factor aleatorio.
+3. `Combate`: creación de partidas entre dos `Mis Pokémon`, ejecución de fases por turno, actualización de PS, finalización por KO e histórico trazable.
+
+Todos los casos de uso `UC-01` a `UC-22` descritos en este documento están cubiertos por endpoints y handlers de aplicación.
 
 ## 3. Lectura funcional del requisito original
 
-### 3.1 Parte 1 del PDF
+### 3.1 Cálculo de daño
 
-El requisito exige un método de cálculo de daño basado en:
+El requisito exige calcular el daño de un movimiento usando:
 
-- nivel
-- estadísticas del atacante y del rival
+- nivel del atacante
+- estadísticas del atacante y del defensor
 - poder del movimiento
 - efectividad por tipo
-- factor aleatorio entero entre 85 y 100
+- factor aleatorio entero entre `85` y `100`
 
-La fórmula mostrada en el PDF es:
+La fórmula base del PDF es:
 
 ```txt
 Daño(PS) = {[(2 * Nivel / 5 + 2) * AtaqueDelAtacante * PoderDelMovimiento / DefensaDelRival] / 50} * Efectividad * Random / 100
 ```
 
-Además, el PDF incluye una tabla completa de `Efectividad` por tipo. Este análisis la transcribe más adelante y la adopta como fuente normativa para cualquier decisión funcional sobre ventaja, resistencia o inmunidad.
+La implementación actual concreta esa fórmula así:
 
-### 3.2 Parte 2 del PDF
+- si el movimiento es `Physical`, usa `Attack` del atacante y `Defense` del defensor
+- si el movimiento es `Special`, usa `SpecialAttack` del atacante y `SpecialDefense` del defensor
+- si el movimiento es `Status`, no se permite calcular daño
+- la efectividad sale exclusivamente de la tabla normativa de la sección `6.1`
+- si el defensor tiene dos tipos, se multiplican ambos coeficientes
+- el daño bruto se redondea hacia abajo con `Floor`
+- el daño aplicado se limita para no dejar los PS del defensor por debajo de `0`
 
-La API "estilo pokédex" debe cubrir al menos:
+### 3.2 API tipo Pokédex
 
-- Pokémon base `CRUD`
-- Movimientos `CRUD`
-- Mis Pokémon con sus 4 movimientos `CRUD`
-- Consulta para obtener los movimientos de un Pokémon
-- Consulta para obtener los movimientos posibles de un Pokémon
-- Consulta para obtener la lista de Pokémon que comparten un mismo movimiento
+La API cubre:
 
-### 3.3 Parte 3 del PDF
+- especies base Pokémon
+- movimientos
+- movimientos aprendibles por especie
+- instancias jugables de `Mi Pokémon`
+- movimientos equipados de una instancia
+- consulta de especies que pueden aprender un movimiento
 
-La API debe mantener el estado de una partida y representar un combate:
+### 3.3 Combate
 
-- se asignan 2 Pokémon adversarios
-- el combate progresa por fases
-- termina cuando los PS de un Pokémon llegan a 0
+La API mantiene partidas entre exactamente dos `Mis Pokémon`.
 
-## 4. Ambigüedades del requisito y decisiones necesarias
+Una partida:
 
-El PDF es suficiente para definir el producto, pero no cierra todos los detalles de implementación funcional. Para evitar interpretaciones inconsistentes, este documento fija las siguientes decisiones para el MVP.
+- nace con estado `Created`
+- empieza en el turno `1`
+- asigna como primer atacante al primer `Mi Pokémon` recibido
+- avanza a `InProgress` tras la primera fase no finalizante
+- pasa a `Finished` cuando un defensor queda a `0` PS
+- registra ganador, perdedor e histórico de fases
+- rechaza nuevas fases cuando está finalizada
 
-### 4.1 Tipo simple frente a tipo dual
+## 4. Decisiones funcionales implementadas
 
-El PDF habla de `Tipo` en singular, pero la fuente de catálogo de Pokémon incluye especies con 1 o 2 tipos. Además, la matriz de efectividad del PDF es plenamente compatible con escenarios de multi-tipo.
+### 4.1 Tipos simples y tipos duales
 
-Decisión recomendada:
+El dominio soporta especies con `1..2` tipos.
 
-- soportar `1..2` tipos por Pokémon base
+Esto permite modelar correctamente especies como:
 
-Impacto:
+- `Charizard`: `Fire`, `Flying`
+- `Venusaur`: `Grass`, `Poison`
+- `Gengar`: `Ghost`, `Poison`
+- `Golem`: `Rock`, `Ground`
+- `Dragonite`: `Dragon`, `Flying`
 
-- permite modelar correctamente especies como `Charizard`, `Venusaur`, `Gengar`, `Golem` o `Dragonite`
-- evita empobrecer el catálogo de referencia
-- habilita casos de uso más ricos de combate, resistencias e inmunidades
+### 4.2 Tabla de efectividad normativa
 
-Si el equipo decide mantener un solo tipo por restricciones técnicas del MVP, esa decisión debe quedar documentada como desviación funcional respecto a la fuente de catálogo.
+La tabla de la sección `6.1` es un contrato funcional explícito.
 
-### 4.2 La tabla de efectividad del PDF pasa a ser normativa
+La implementación la materializa en `PokemonTypeEffectivenessChart` y todos los cálculos de daño la usan como única fuente de verdad.
 
-El apartado `Efectividad` del PDF no debe tratarse como una imagen orientativa, sino como una regla de negocio cerrada del MVP.
+### 4.3 Categorías de movimiento
 
-Decisiones recomendadas:
+El sistema soporta tres categorías:
 
-- transcribir la tabla completa dentro de este documento
-- usar esa tabla como fuente de verdad funcional para backend, QA y casos de uso
-- resolver toda ventaja, resistencia o inmunidad consultando primero la tabla
-- multiplicar coeficientes cuando el defensor tenga dos tipos
-- si hubiera conflicto entre ejemplos del dataset y la tabla, prevalece la tabla del PDF para el cálculo de daño
+- `Physical`
+- `Special`
+- `Status`
 
-### 4.3 Categoría del movimiento: físico o especial
+Reglas actuales:
 
-El PDF define en el Pokémon:
+- `Physical` requiere poder mayor que `0` y usa estadísticas físicas.
+- `Special` requiere poder mayor que `0` y usa estadísticas especiales.
+- `Status` requiere poder `0` y no puede usarse para calcular daño ni ejecutar una fase de combate que requiera daño.
 
-- ataque base
-- defensa base
-- ataque especial base
-- defensa especial base
+### 4.4 Alcance no implementado
 
-Sin embargo, la fórmula solo habla de `AtaqueDelAtacante` y `DefensaDelRival`, y el movimiento solo aparece con:
-
-- nombre
-- poder
-
-Para que existan tanto estadísticas físicas como especiales con sentido funcional, el movimiento debe tener también:
-
-- `tipo`
-- `categoría`: `Physical` o `Special`
-
-Decisión recomendada:
-
-- si el movimiento es `Physical`, usar `Attack` del atacante y `Defense` del rival
-- si el movimiento es `Special`, usar `SpecialAttack` del atacante y `SpecialDefense` del rival
-
-### 4.4 Elementos de combate fuera de alcance del MVP
-
-El PDF no exige:
+Quedan fuera del MVP:
 
 - PP de movimientos
-- precisión y fallo del movimiento
-- críticos
+- precisión y fallo
+- golpes críticos
 - STAB
 - estados alterados
-- items
-- habilidades
-- cambios de estadísticas por buffs/debuffs
-- equipos de más de un Pokémon por entrenador
+- objetos
+- habilidades con efecto de combate
+- cambios temporales de estadísticas
+- equipos de más de un Pokémon por jugador
 
-Decisión de alcance:
-
-- todos esos conceptos quedan `fuera del MVP`
-- la API de combate se limita a aplicar daño directo por fase con el movimiento seleccionado
-
-### 4.5 Naturaleza de "Mis Pokémon"
-
-El requisito diferencia entre:
-
-- `Pokémon base`
-- `Mis Pokémon con sus 4 movimientos`
-
-Interpretación funcional:
-
-- `Pokémon base` representa una especie del catálogo con sus estadísticas y movimientos aprendibles
-- `Mi Pokémon` representa una instancia propiedad del usuario o del sistema de prueba, basada en una especie, con nivel, PS actuales, PS totales y hasta 4 movimientos equipados
-
-### 4.6 Consulta "movimientos de un Pokémon" frente a "movimientos posibles"
-
-Para evitar ambigüedad, este documento separa:
-
-- `movimientos equipados`: los que tiene actualmente un `Mi Pokémon`
-- `movimientos posibles`: los que la especie puede aprender según el catálogo
+El combate implementado es determinista salvo por el factor aleatorio `85..100`.
 
 ## 5. Modelo funcional del dominio
 
-## 5.1 Entidades funcionales principales
+### 5.1 Pokémon base
 
-### Pokémon base
+Representa una especie del catálogo.
 
-Representa una especie de referencia del catálogo.
+Campos funcionales:
 
-Debe contener como mínimo:
+- `Id`
+- `Name`
+- `Types`
+- `BaseStats.Health`
+- `BaseStats.Attack`
+- `BaseStats.Defense`
+- `BaseStats.SpecialAttack`
+- `BaseStats.SpecialDefense`
+- `BaseStats.Speed`
+- movimientos aprendibles asociados
 
-- identificador
-- nombre canónico
-- uno o dos tipos dentro del catálogo cerrado definido por la tabla de efectividad de la sección `6.1`
-- estadísticas base: HP, Attack, Defense, SpecialAttack, SpecialDefense, Speed
-- lista de movimientos que puede aprender
+Restricciones principales:
 
-### Movimiento
+- nombre obligatorio y único
+- entre uno y dos tipos
+- tipos sin duplicados
+- estadísticas base mayores que `0`
 
-Representa una acción que puede ser aprendida y usada en combate.
+### 5.2 Movimiento
 
-Debe contener como mínimo:
+Representa una acción disponible en el catálogo.
 
-- identificador
-- nombre
-- tipo dentro del catálogo cerrado definido por la tabla de efectividad de la sección `6.1`
-- categoría `Physical` o `Special`
-- poder
+Campos funcionales:
 
-### Mi Pokémon
+- `Id`
+- `Name`
+- `Type`
+- `Category`
+- `Power`
 
-Representa una instancia jugable o seleccionable para combate.
+Restricciones principales:
 
-Debe contener como mínimo:
+- nombre obligatorio, único y con longitud máxima de `100`
+- tipo válido
+- categoría válida
+- poder coherente con la categoría
 
-- identificador
-- referencia a Pokémon base
+### 5.3 Mi Pokémon
+
+Representa una instancia jugable basada en una especie.
+
+Campos funcionales:
+
+- `Id`
+- especie base
 - nivel
 - PS actuales
 - PS totales
-- hasta 4 movimientos equipados
+- movimientos equipados
 
-### Partida / Combate
+Restricciones principales:
 
-Representa el estado de un enfrentamiento entre dos Pokémon.
+- referencia a especie existente
+- nivel entre `1` y `100`
+- PS actuales mayores o iguales que `0`
+- PS totales mayores que `0`
+- PS actuales menores o iguales que PS totales
+- entre `1` y `4` movimientos equipados
+- movimientos equipados sin duplicados
+- movimientos equipados aprendibles por la especie
 
-Debe contener como mínimo:
+### 5.4 Partida de combate
 
-- identificador
-- Pokémon A
-- Pokémon B
-- estado de la partida
-- turno o fase actual
-- histórico de acciones
-- ganador cuando aplique
+Representa un enfrentamiento entre dos `Mis Pokémon`.
 
-### Fase de combate
+Campos funcionales:
 
-Representa una iteración del combate donde:
+- `Id`
+- `Status`
+- `CurrentTurnNumber`
+- `NextAttackerMyPokemonId`
+- `WinnerMyPokemonId`
+- `LoserMyPokemonId`
+- combatientes
+- histórico de fases
 
-- se elige un atacante
-- se elige un movimiento
-- se calcula el daño
-- se descuentan PS
-- se registra el resultado
+Estados:
 
-## 5.2 Relaciones funcionales
+- `Created`
+- `InProgress`
+- `Finished`
 
-- un `Pokémon base` puede aprender muchos `Movimientos`
-- un `Movimiento` puede ser compartido por muchos `Pokémon base`
-- un `Mi Pokémon` referencia exactamente un `Pokémon base`
-- un `Mi Pokémon` equipa entre `1` y `4` movimientos para jugar
-- una `Partida` enfrenta exactamente `2` `Mis Pokémon`
-- una `Partida` contiene muchas `Fases`
+### 5.5 Fase de combate
+
+Representa una acción de combate registrada.
+
+Campos funcionales:
+
+- número de secuencia
+- atacante
+- defensor
+- movimiento usado
+- nombre del movimiento
+- factor aleatorio
+- desglose de efectividad por tipo defensor
+- efectividad total
+- daño aplicado
+- PS restantes del atacante
+- PS restantes del defensor
 
 ## 6. Reglas de negocio del MVP
 
@@ -232,10 +242,10 @@ Representa una iteración del combate donde:
 
 La siguiente matriz transcribe funcionalmente la tabla del apartado `Efectividad` del PDF.
 
-- las filas representan el tipo del movimiento atacante
-- las columnas representan el tipo del Pokémon defensor
-- los únicos coeficientes base válidos son `0`, `0.5`, `1` y `2`
-- si el defensor tiene dos tipos, la efectividad total se calcula multiplicando ambos coeficientes base
+- Las filas representan el tipo del movimiento atacante.
+- Las columnas representan el tipo del Pokémon defensor.
+- Los únicos coeficientes base válidos son `0`, `0.5`, `1` y `2`.
+- Si el defensor tiene dos tipos, la efectividad total se calcula multiplicando ambos coeficientes base.
 
 | Tipo atacante \ Tipo defensor | Acero | Agua | Bicho | Dragón | Eléctrico | Fantasma | Fuego | Hada | Hielo | Lucha | Normal | Planta | Psíquico | Roca | Siniestro | Tierra | Veneno | Volador |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -258,576 +268,836 @@ La siguiente matriz transcribe funcionalmente la tabla del apartado `Efectividad
 | Veneno | 0 | 1 | 1 | 1 | 1 | 0.5 | 1 | 2 | 1 | 1 | 1 | 2 | 1 | 0.5 | 1 | 0.5 | 0.5 | 1 |
 | Volador | 0.5 | 1 | 2 | 1 | 0.5 | 1 | 1 | 1 | 1 | 2 | 1 | 2 | 1 | 0.5 | 1 | 1 | 1 | 1 |
 
-### 6.2 Catálogo
+### 6.2 Valores HTTP reales para tipos y categorías
+
+Aunque la tabla anterior está documentada en español para mantener la lectura funcional del PDF, la API recibe y devuelve los tipos con los nombres del enum en inglés.
+
+Tipos aceptados por la API:
+
+- `Bug`
+- `Dark`
+- `Dragon`
+- `Electric`
+- `Fairy`
+- `Fighting`
+- `Fire`
+- `Flying`
+- `Ghost`
+- `Grass`
+- `Ground`
+- `Ice`
+- `Normal`
+- `Poison`
+- `Psychic`
+- `Rock`
+- `Steel`
+- `Water`
+
+Categorías aceptadas por la API:
+
+- `Physical`
+- `Special`
+- `Status`
+
+La validación no distingue mayúsculas de minúsculas, pero las respuestas se devuelven con el nombre canónico del enum.
+
+### 6.3 Reglas de catálogo
 
 - `BR-01`: no puede existir más de un Pokémon base con el mismo nombre canónico.
 - `BR-02`: no puede existir más de un movimiento con el mismo nombre canónico.
-- `BR-03`: un Pokémon base debe tener las seis estadísticas base informadas y con valor mayor que 0.
-- `BR-04`: un Pokémon base debe tener al menos un tipo y como máximo dos, y todos sus tipos deben pertenecer al catálogo cerrado de la sección `6.1`.
-- `BR-05`: un movimiento debe tener un tipo perteneciente al catálogo cerrado de la sección `6.1` y poder mayor que 0 si no es de estado. Para este MVP, como el cálculo de daño usa poder, se recomienda limitar el catálogo jugable a movimientos con poder numérico.
+- `BR-03`: un Pokémon base debe tener las seis estadísticas base informadas y con valor mayor que `0`.
+- `BR-04`: un Pokémon base debe tener al menos un tipo y como máximo dos; todos los tipos deben pertenecer al catálogo cerrado.
+- `BR-05`: un movimiento debe tener tipo y categoría válidos. Si es `Physical` o `Special`, su poder debe ser mayor que `0`. Si es `Status`, su poder debe ser `0`.
 - `BR-06`: la relación `Pokémon base -> movimientos aprendibles` no puede contener duplicados.
 
-### 6.3 Mis Pokémon
+### 6.4 Reglas de Mis Pokémon
 
-- `BR-07`: un Mi Pokémon debe referenciar una especie existente del catálogo base.
-- `BR-08`: un Mi Pokémon debe tener nivel válido.
-- `BR-09`: un Mi Pokémon debe tener `PS actuales <= PS totales`.
-- `BR-10`: un Mi Pokémon puede tener entre `1` y `4` movimientos equipados.
-- `BR-11`: todo movimiento equipado debe pertenecer a la lista de movimientos posibles de su especie.
-- `BR-12`: un Mi Pokémon no puede equipar el mismo movimiento dos veces.
+- `BR-07`: un `Mi Pokémon` debe referenciar una especie existente.
+- `BR-08`: un `Mi Pokémon` debe tener nivel entre `1` y `100`.
+- `BR-09`: un `Mi Pokémon` debe cumplir `0 <= PS actuales <= PS totales` y `PS totales > 0`.
+- `BR-10`: un `Mi Pokémon` debe tener entre `1` y `4` movimientos equipados.
+- `BR-11`: todo movimiento equipado debe pertenecer a la lista de movimientos aprendibles de su especie.
+- `BR-12`: un `Mi Pokémon` no puede equipar el mismo movimiento dos veces.
 
-### 6.4 Cálculo de daño
+### 6.5 Reglas de cálculo de daño
 
 - `BR-13`: el factor `Random` es un entero entre `85` y `100`, ambos inclusive.
-- `BR-14`: la efectividad base de un movimiento debe obtenerse exclusivamente de la matriz de la sección `6.1`, cruzando tipo atacante contra tipo defensor.
-- `BR-15`: si el Pokémon defensor tiene dos tipos, la efectividad total debe calcularse multiplicando ambos coeficientes base.
-- `BR-16`: si la efectividad total es `0`, el daño final debe ser `0`.
-- `BR-17`: el daño no puede reducir los PS por debajo de `0`.
+- `BR-14`: la efectividad base de un movimiento se obtiene exclusivamente de la matriz normativa.
+- `BR-15`: si el defensor tiene dos tipos, la efectividad total se calcula multiplicando ambos coeficientes base.
+- `BR-16`: si la efectividad total es `0`, el daño final es `0`.
+- `BR-17`: el daño aplicado no puede reducir los PS por debajo de `0`.
 - `BR-18`: para el MVP no se consideran críticos, STAB, precisión, evasión ni estados.
 
-### 6.5 Combate
+### 6.6 Reglas de combate
 
-- `BR-19`: una partida solo puede iniciarse con exactamente 2 Pokémon adversarios válidos.
-- `BR-20`: ninguno de los 2 Pokémon puede iniciar una partida con PS actuales en `0`.
+- `BR-19`: una partida solo puede crearse con exactamente dos `Mis Pokémon` distintos.
+- `BR-20`: ninguno de los dos `Mis Pokémon` puede iniciar una partida con PS actuales en `0`.
 - `BR-21`: una fase de combate debe dejar trazabilidad del atacante, defensor, movimiento, random, efectividad base, efectividad total, daño y PS restantes.
-- `BR-22`: la partida termina cuando los PS actuales de uno de los Pokémon llegan a `0`.
+- `BR-22`: la partida termina cuando los PS actuales de uno de los combatientes llegan a `0`.
 - `BR-23`: una vez finalizada la partida no se pueden ejecutar más fases.
+- `BR-24`: el atacante de una fase debe pertenecer a la partida y coincidir con `NextAttackerMyPokemonId`.
+- `BR-25`: el movimiento usado en una fase debe estar equipado por el atacante.
 
-## 7. Dataset funcional recomendado para el MVP
+## 7. Catálogo MVP implementado
 
-## 7.1 Objetivo del dataset
+### 7.1 Especies
 
-El conjunto de 10 Pokémon debe permitir:
+El seed MVP contiene 10 especies con identificadores estables:
 
-- probar CRUD de especies
-- probar CRUD de movimientos
-- probar aprendizaje y equipamiento
-- probar movimientos compartidos
-- probar ventajas, resistencias e inmunidades
-- probar atacantes físicos y especiales
-- probar combates con resultados variados
+| Especie | Tipos | HP | Attack | Defense | SpecialAttack | SpecialDefense | Speed |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `Charizard` | `Fire`, `Flying` | 78 | 84 | 78 | 109 | 85 | 100 |
+| `Blastoise` | `Water` | 79 | 83 | 100 | 85 | 105 | 78 |
+| `Venusaur` | `Grass`, `Poison` | 80 | 82 | 83 | 100 | 100 | 80 |
+| `Pikachu` | `Electric` | 35 | 55 | 40 | 50 | 50 | 90 |
+| `Gengar` | `Ghost`, `Poison` | 60 | 65 | 60 | 130 | 75 | 110 |
+| `Golem` | `Rock`, `Ground` | 80 | 120 | 130 | 55 | 65 | 45 |
+| `Alakazam` | `Psychic` | 55 | 50 | 45 | 135 | 95 | 120 |
+| `Machamp` | `Fighting` | 90 | 130 | 80 | 65 | 85 | 55 |
+| `Dragonite` | `Dragon`, `Flying` | 91 | 134 | 95 | 100 | 100 | 80 |
+| `Snorlax` | `Normal` | 160 | 110 | 65 | 65 | 110 | 30 |
 
-## 7.2 Pokémon recomendados
+### 7.2 Movimientos
 
-Se recomienda este roster base:
+El seed MVP contiene 27 movimientos:
 
-1. `Charizard`
-   Motivo: atacante especial, tipo dual, acceso a fuego, volador y movimientos compartidos como `Hyper Beam`.
-2. `Blastoise`
-   Motivo: tanque de agua, acceso a `Surf`, `Hydro Pump`, `Ice Beam` y `Earthquake`.
-3. `Venusaur`
-   Motivo: control y estado con `Sleep Powder`, acceso a hierba y veneno.
-4. `Pikachu`
-   Motivo: eléctrico icónico, fácil de entender y útil para casos de ventaja simple contra agua.
-5. `Gengar`
-   Motivo: introduce inmunidad y daño especial de tipo fantasma.
-6. `Golem`
-   Motivo: introduce tierra/roca, `Earthquake`, resistencia e inmunidad eléctrica como defensor.
-7. `Alakazam`
-   Motivo: caso claro de atacante especial de tipo psíquico.
-8. `Machamp`
-   Motivo: caso claro de atacante físico de tipo lucha.
-9. `Dragonite`
-   Motivo: dual type, gran variedad de movimientos y cobertura elemental.
-10. `Snorlax`
-    Motivo: alto HP, caso de tanque normal y fuerte candidato a compartir movimientos como `Hyper Beam`.
+| Movimiento | Tipo | Categoría | Poder |
+| --- | --- | --- | --- |
+| `Flamethrower` | `Fire` | `Special` | 90 |
+| `Fire Blast` | `Fire` | `Special` | 110 |
+| `Fly` | `Flying` | `Physical` | 90 |
+| `Hyper Beam` | `Normal` | `Special` | 150 |
+| `Solar Beam` | `Grass` | `Special` | 120 |
+| `Surf` | `Water` | `Special` | 90 |
+| `Hydro Pump` | `Water` | `Special` | 110 |
+| `Ice Beam` | `Ice` | `Special` | 90 |
+| `Sleep Powder` | `Grass` | `Status` | 0 |
+| `Seed Bomb` | `Grass` | `Physical` | 80 |
+| `Sludge Wave` | `Poison` | `Special` | 95 |
+| `Thunderbolt` | `Electric` | `Special` | 90 |
+| `Discharge` | `Electric` | `Special` | 80 |
+| `Shadow Ball` | `Ghost` | `Special` | 80 |
+| `Dark Pulse` | `Dark` | `Special` | 80 |
+| `Poison Jab` | `Poison` | `Physical` | 80 |
+| `Psychic` | `Psychic` | `Special` | 90 |
+| `Close Combat` | `Fighting` | `Physical` | 120 |
+| `Drain Punch` | `Fighting` | `Physical` | 75 |
+| `Earthquake` | `Ground` | `Physical` | 100 |
+| `Bulldoze` | `Ground` | `Physical` | 60 |
+| `Protect` | `Normal` | `Status` | 0 |
+| `Air Slash` | `Flying` | `Special` | 75 |
+| `Thunder Punch` | `Electric` | `Physical` | 75 |
+| `Ice Punch` | `Ice` | `Physical` | 75 |
+| `Body Slam` | `Normal` | `Physical` | 85 |
+| `Rest` | `Psychic` | `Status` | 0 |
 
-## 7.3 Cobertura funcional del roster
+### 7.3 Carga del seed
 
-Este roster cubre:
+La carga del roster MVP depende de `Seed__ApplyMvpRoster`.
 
-- ventajas simples: `Electric > Water`, `Fire > Grass`, `Psychic > Fighting`
-- resistencias: por ejemplo `Grass` resistido por `Charizard`
-- inmunidades: por ejemplo ataques `Normal` contra `Gengar`, y ataques `Electric` contra `Golem` si se soportan tipos duales de forma completa
-- movimientos compartidos: `Protect`, `Hyper Beam`, `Earthquake`, `Surf` en varios casos del roster o del catálogo asociado
-- diversidad de velocidades, HP y daño
+Si está activada, el inicializador inserta:
 
-## 7.4 Catálogo de movimientos jugables recomendado
+- especies si el catálogo de especies está vacío
+- movimientos si el catálogo de movimientos está vacío
+- relaciones aprendibles si el catálogo de relaciones está vacío
 
-No es necesario importar todos los movimientos del sitio de referencia para el MVP. Es preferible cargar un subconjunto curado, suficiente para cubrir reglas y consultas.
+## 8. Contratos HTTP implementados
 
-Subconjunto recomendado:
+### 8.1 Catálogo de Pokémon base
 
-- `Flamethrower`
-- `Fire Blast`
-- `Fly`
-- `Hyper Beam`
-- `Solar Beam`
-- `Surf`
-- `Hydro Pump`
-- `Ice Beam`
-- `Sleep Powder`
-- `Seed Bomb`
-- `Sludge Wave`
-- `Thunderbolt`
-- `Discharge`
-- `Shadow Ball`
-- `Dark Pulse`
-- `Poison Jab`
-- `Psychic`
-- `Close Combat`
-- `Drain Punch`
-- `Earthquake`
-- `Bulldoze`
-- `Protect`
-- `Air Slash`
-- `Thunder Punch`
-- `Ice Punch`
-- `Body Slam`
-- `Rest`
+| Caso de uso | Método y ruta | Respuesta principal |
+| --- | --- | --- |
+| `UC-01` | `POST /api/v1/pokemons` | `201 Created` con `PokemonSpeciesContract` |
+| `UC-02` | `GET /api/v1/pokemons` | `200 OK` con `PokemonSpeciesCatalogContract` |
+| `UC-02` | `GET /api/v1/pokemons/{id}` | `200 OK` con `PokemonSpeciesContract` |
+| `UC-03` | `PUT /api/v1/pokemons/{id}` | `200 OK` con `PokemonSpeciesContract` |
+| `UC-04` | `DELETE /api/v1/pokemons/{id}` | `204 No Content` |
+| `UC-09` | `PUT /api/v1/pokemons/{id}/learnable-moves` | `200 OK` con `PokemonLearnableMovesContract` |
+| `UC-10` | `GET /api/v1/pokemons/{id}/learnable-moves` | `200 OK` con `PokemonLearnableMovesContract` |
 
-Este conjunto es suficiente para:
+Filtros de listado:
 
-- demostrar aprendizaje posible
-- demostrar equipamiento de hasta 4 movimientos
-- demostrar movimientos compartidos
-- demostrar daño físico y especial
-- demostrar efectos de tipo
+- `name`
+- `type`
+- `page`, por defecto `1`
+- `pageSize`, por defecto `20`, máximo `100`
 
-## 8. Casos de uso funcionales
+### 8.2 Catálogo de movimientos
 
-## 8.1 Catálogo de Pokémon base
+| Caso de uso | Método y ruta | Respuesta principal |
+| --- | --- | --- |
+| `UC-05` | `POST /api/v1/moves` | `201 Created` con `PokemonMoveContract` |
+| `UC-06` | `GET /api/v1/moves` | `200 OK` con `PokemonMoveCatalogContract` |
+| `UC-06` | `GET /api/v1/moves/{id}` | `200 OK` con `PokemonMoveContract` |
+| `UC-07` | `PUT /api/v1/moves/{id}` | `200 OK` con `PokemonMoveContract` |
+| `UC-08` | `DELETE /api/v1/moves/{id}` | `204 No Content` |
+| `UC-11` | `GET /api/v1/moves/{id}/pokemon-species` | `200 OK` con `PokemonMoveSharedSpeciesContract` |
+
+Filtros de listado:
+
+- `name`
+- `type`
+- `category`
+- `page`, por defecto `1`
+- `pageSize`, por defecto `20`, máximo `100`
+
+### 8.3 Mis Pokémon
+
+| Caso de uso | Método y ruta | Respuesta principal |
+| --- | --- | --- |
+| `UC-12` | `POST /api/v1/my-pokemons` | `201 Created` con `MyPokemonContract` |
+| `UC-13` | `GET /api/v1/my-pokemons` | `200 OK` con `MyPokemonCatalogContract` |
+| `UC-13` | `GET /api/v1/my-pokemons/{id}` | `200 OK` con `MyPokemonContract` |
+| `UC-14` | `PUT /api/v1/my-pokemons/{id}` | `200 OK` con `MyPokemonContract` |
+| `UC-15` | `DELETE /api/v1/my-pokemons/{id}` | `204 No Content` |
+| `UC-16` | `GET /api/v1/my-pokemons/{id}/equipped-moves` | `200 OK` con `MyPokemonEquippedMovesContract` |
+
+Filtros de listado:
+
+- `page`, por defecto `1`
+- `pageSize`, por defecto `20`, máximo `100`
+
+### 8.4 Daño y combate
+
+| Caso de uso | Método y ruta | Respuesta principal |
+| --- | --- | --- |
+| `UC-17` | `POST /api/v1/damage-calculations` | `200 OK` con `MoveDamageCalculationContract` |
+| `UC-18` | `POST /api/v1/battles` | `201 Created` con `BattleContract` |
+| `UC-19` | `GET /api/v1/battles/{id}` | `200 OK` con `BattleContract` |
+| `UC-20` | `POST /api/v1/battles/{id}/phases` | `200 OK` con `BattlePhaseExecutionContract` |
+| `UC-22` | `GET /api/v1/battles/{id}/phases` | `200 OK` con `BattleHistoryContract` |
+
+`UC-21` no tiene endpoint propio porque se ejecuta automáticamente dentro de `UC-20`.
+
+### 8.5 Errores HTTP
+
+La API devuelve errores explícitos:
+
+- `400 Bad Request` con `HttpValidationProblemDetails` para errores de validación funcional
+- `404 Not Found` con `ProblemDetails` cuando el recurso no existe
+- `409 Conflict` con `ProblemDetails` para conflictos de unicidad
+- `500 Internal Server Error` para errores no controlados
+
+Los errores de validación incluyen claves concretas como:
+
+- `name`
+- `types`
+- `baseStats.health`
+- `type`
+- `category`
+- `power`
+- `equippedMoveIds`
+- `attackerMyPokemonId`
+- `moveId`
+- `dependencies`
+
+## 9. Casos de uso funcionales
 
 ### UC-01 Crear Pokémon base
 
-- Objetivo: dar de alta una especie jugable del catálogo.
-- Actor principal: administrador del catálogo o proceso de seed.
-- Precondiciones:
-  - el nombre no existe previamente
-  - los tipos existen en el sistema o pertenecen al catálogo cerrado de la sección `6.1`
-- Flujo principal:
-  1. el actor informa nombre, tipo o tipos y estadísticas base
-  2. el sistema valida unicidad y rango de datos
-  3. el sistema crea la especie
-  4. el sistema devuelve el identificador y el recurso creado
-- Reglas aplicables: `BR-01`, `BR-03`, `BR-04`
-- Alternativas y errores:
-  - nombre duplicado
-  - estadísticas no válidas
-  - más de dos tipos
+Objetivo: dar de alta una especie del catálogo.
+
+Endpoint:
+
+```txt
+POST /api/v1/pokemons
+```
+
+Entrada:
+
+- `name`
+- `types`
+- `baseStats`
+
+Reglas aplicables:
+
+- `BR-01`
+- `BR-03`
+- `BR-04`
+
+Errores esperados:
+
+- nombre vacío
+- nombre duplicado
+- tipos vacíos, inválidos, duplicados o más de dos
+- estadísticas menores o iguales que `0`
 
 ### UC-02 Consultar listado y detalle de Pokémon base
 
-- Objetivo: recuperar especies del catálogo.
-- Actor principal: consumidor de API.
-- Precondiciones: ninguna.
-- Flujo principal:
-  1. el actor solicita listado o detalle
-  2. el sistema devuelve especies con sus datos base
-- Variantes útiles:
-  - filtrar por tipo
-  - filtrar por nombre
-  - paginar
+Objetivo: recuperar especies del catálogo.
+
+Endpoints:
+
+```txt
+GET /api/v1/pokemons
+GET /api/v1/pokemons/{id}
+```
+
+El listado soporta búsqueda por nombre, filtro por tipo y paginación.
+
+El detalle devuelve:
+
+- identificador estable
+- nombre
+- tipos
+- estadísticas base
 
 ### UC-03 Actualizar Pokémon base
 
-- Objetivo: modificar datos canónicos de una especie.
-- Actor principal: administrador del catálogo.
-- Precondiciones:
-  - la especie existe
-- Flujo principal:
-  1. el actor envía cambios
-  2. el sistema valida consistencia
-  3. el sistema persiste los cambios
-- Reglas aplicables: `BR-01`, `BR-03`, `BR-04`
+Objetivo: modificar datos canónicos de una especie.
+
+Endpoint:
+
+```txt
+PUT /api/v1/pokemons/{id}
+```
+
+Reglas aplicables:
+
+- `BR-01`
+- `BR-03`
+- `BR-04`
+
+La actualización modifica la especie base, no las instancias ya existentes salvo por las lecturas que referencian la especie actual.
 
 ### UC-04 Eliminar Pokémon base
 
-- Objetivo: retirar una especie del catálogo.
-- Actor principal: administrador del catálogo.
-- Precondiciones:
-  - la especie existe
-  - no está siendo usada por Mis Pokémon o el sistema define una estrategia de borrado controlado
-- Flujo principal:
-  1. el actor solicita borrado
-  2. el sistema valida dependencias
-  3. el sistema elimina o rechaza la operación
-- Regla recomendada:
-  - impedir borrado físico si existen referencias activas
+Objetivo: retirar una especie del catálogo cuando no tiene dependencias persistidas.
 
-## 8.2 Catálogo de movimientos
+Endpoint:
+
+```txt
+DELETE /api/v1/pokemons/{id}
+```
+
+La estrategia actual es borrado físico protegido por comprobación de dependencias.
+
+Se rechaza si la especie está referenciada por:
+
+- instancias de `Mi Pokémon`
+- relaciones aprendibles u otros datos persistidos que impidan mantener integridad
 
 ### UC-05 Crear movimiento
 
-- Objetivo: registrar un movimiento disponible para aprendizaje y combate.
-- Actor principal: administrador del catálogo.
-- Precondiciones:
-  - el nombre no existe previamente
-- Flujo principal:
-  1. el actor informa nombre, tipo, categoría y poder
-  2. el sistema valida los datos
-  3. el sistema registra el movimiento
-- Reglas aplicables: `BR-02`, `BR-05`
+Objetivo: registrar un movimiento disponible para aprendizaje y combate.
+
+Endpoint:
+
+```txt
+POST /api/v1/moves
+```
+
+Entrada:
+
+- `name`
+- `type`
+- `category`
+- `power`
+
+Reglas aplicables:
+
+- `BR-02`
+- `BR-05`
 
 ### UC-06 Consultar listado y detalle de movimientos
 
-- Objetivo: consultar el catálogo de movimientos.
-- Actor principal: consumidor de API.
-- Precondiciones: ninguna.
-- Flujo principal:
-  1. el actor solicita el listado o un detalle
-  2. el sistema devuelve los datos del movimiento
-- Variantes útiles:
-  - filtrar por tipo
-  - filtrar por categoría
-  - buscar por nombre
+Objetivo: consultar el catálogo de movimientos.
+
+Endpoints:
+
+```txt
+GET /api/v1/moves
+GET /api/v1/moves/{id}
+```
+
+El listado soporta búsqueda por nombre, filtro por tipo, filtro por categoría y paginación.
 
 ### UC-07 Actualizar movimiento
 
-- Objetivo: corregir o enriquecer datos de un movimiento.
-- Actor principal: administrador del catálogo.
-- Precondiciones:
-  - el movimiento existe
-- Flujo principal:
-  1. el actor envía cambios
-  2. el sistema valida consistencia
-  3. el sistema actualiza el movimiento
+Objetivo: modificar un movimiento del catálogo.
+
+Endpoint:
+
+```txt
+PUT /api/v1/moves/{id}
+```
+
+Reglas aplicables:
+
+- `BR-02`
+- `BR-05`
 
 ### UC-08 Eliminar movimiento
 
-- Objetivo: retirar un movimiento del catálogo.
-- Actor principal: administrador del catálogo.
-- Precondiciones:
-  - el movimiento existe
-  - no está asignado a Mis Pokémon activos o el sistema resuelve la dependencia
-- Flujo principal:
-  1. el actor solicita borrado
-  2. el sistema valida referencias
-  3. el sistema elimina o bloquea la operación
+Objetivo: retirar un movimiento del catálogo cuando no tiene dependencias persistidas.
 
-## 8.3 Aprendizaje y relaciones de catálogo
+Endpoint:
+
+```txt
+DELETE /api/v1/moves/{id}
+```
+
+La estrategia actual es borrado físico protegido por comprobación de dependencias.
+
+Se rechaza si el movimiento está referenciado por:
+
+- movimientos aprendibles de especies
+- movimientos equipados por `Mis Pokémon`
+- fases o histórico de combate que dependan de él
 
 ### UC-09 Asociar movimientos aprendibles a un Pokémon base
 
-- Objetivo: definir qué movimientos puede aprender cada especie.
-- Actor principal: administrador del catálogo o proceso de importación inicial.
-- Precondiciones:
-  - existen la especie y los movimientos
-- Flujo principal:
-  1. el actor selecciona una especie
-  2. el actor añade o retira movimientos aprendibles
-  3. el sistema valida que no haya duplicados
-  4. el sistema guarda la relación
-- Reglas aplicables: `BR-06`
-- Observación:
-  - este caso de uso es imprescindible para soportar las consultas pedidas en el PDF
+Objetivo: definir qué movimientos puede aprender una especie.
+
+Endpoint:
+
+```txt
+PUT /api/v1/pokemons/{id}/learnable-moves
+```
+
+Entrada:
+
+- `addMoveIds`
+- `removeMoveIds`
+
+Reglas aplicables:
+
+- `BR-06`
+
+Validaciones:
+
+- debe existir la especie
+- debe indicarse al menos un movimiento para añadir o retirar
+- los identificadores no pueden estar vacíos
+- no puede haber duplicados en la misma colección
+- no se puede añadir y retirar el mismo movimiento en la misma petición
+- no se puede añadir una relación ya existente
+- no se puede retirar una relación inexistente
 
 ### UC-10 Consultar movimientos posibles de un Pokémon base
 
-- Objetivo: recuperar el conjunto de movimientos que una especie puede aprender.
-- Actor principal: consumidor de API.
-- Precondiciones:
-  - la especie existe
-- Flujo principal:
-  1. el actor solicita los movimientos posibles de una especie
-  2. el sistema devuelve la lista de movimientos aprendibles
-- Regla aplicable:
-  - la fuente del resultado es la relación `Pokémon base -> movimientos aprendibles`
+Objetivo: recuperar el conjunto de movimientos que una especie puede aprender.
+
+Endpoint:
+
+```txt
+GET /api/v1/pokemons/{id}/learnable-moves
+```
+
+La fuente de verdad es la relación `PokemonSpecies -> PokemonLearnableMove -> PokemonMove`.
 
 ### UC-11 Consultar Pokémon que comparten un mismo movimiento
 
-- Objetivo: obtener las especies que pueden aprender o comparten un movimiento determinado.
-- Actor principal: consumidor de API.
-- Precondiciones:
-  - el movimiento existe
-- Flujo principal:
-  1. el actor selecciona un movimiento
-  2. el sistema busca todas las especies asociadas
-  3. el sistema devuelve la lista de Pokémon base
-- Valor funcional:
-  - cubre la consulta explícita del PDF
-  - permite probar correctamente la relación muchos-a-muchos
+Objetivo: obtener las especies que pueden aprender un movimiento determinado.
 
-## 8.4 Gestión de Mis Pokémon
+Endpoint:
+
+```txt
+GET /api/v1/moves/{id}/pokemon-species
+```
+
+La respuesta incluye:
+
+- identificador del movimiento
+- nombre del movimiento
+- especies que lo tienen como aprendible
 
 ### UC-12 Crear Mi Pokémon
 
-- Objetivo: registrar una instancia jugable basada en una especie del catálogo.
-- Actor principal: usuario de la API o proceso de prueba.
-- Precondiciones:
-  - existe la especie base
-  - existe al menos un movimiento aprendible para esa especie
-- Flujo principal:
-  1. el actor selecciona la especie
-  2. informa nivel y, si procede, PS iniciales
-  3. selecciona entre 1 y 4 movimientos aprendibles
-  4. el sistema valida y crea la instancia
-- Reglas aplicables: `BR-07`, `BR-08`, `BR-09`, `BR-10`, `BR-11`, `BR-12`
+Objetivo: registrar una instancia jugable basada en una especie.
+
+Endpoint:
+
+```txt
+POST /api/v1/my-pokemons
+```
+
+Entrada:
+
+- `pokemonSpeciesId`
+- `level`
+- `currentHealthPoints`
+- `totalHealthPoints`
+- `equippedMoveIds`
+
+Reglas aplicables:
+
+- `BR-07`
+- `BR-08`
+- `BR-09`
+- `BR-10`
+- `BR-11`
+- `BR-12`
+
+La creación valida que todos los movimientos equipados existan y sean aprendibles por la especie.
 
 ### UC-13 Consultar Mis Pokémon
 
-- Objetivo: listar y consultar el detalle de las instancias jugables registradas.
-- Actor principal: consumidor de API.
-- Precondiciones: ninguna.
-- Flujo principal:
-  1. el actor solicita listado o detalle
-  2. el sistema devuelve especie, nivel, PS y movimientos equipados
+Objetivo: listar y consultar el detalle de las instancias jugables.
+
+Endpoints:
+
+```txt
+GET /api/v1/my-pokemons
+GET /api/v1/my-pokemons/{id}
+```
+
+El detalle devuelve:
+
+- identificador de la instancia
+- especie base completa
+- nivel
+- PS actuales
+- PS totales
+- movimientos equipados
 
 ### UC-14 Actualizar Mi Pokémon
 
-- Objetivo: modificar una instancia jugable.
-- Actor principal: usuario de la API.
-- Flujo principal:
-  1. el actor cambia nivel, PS o movimientos equipados
-  2. el sistema valida consistencia
-  3. el sistema actualiza el recurso
-- Reglas aplicables: `BR-08`, `BR-09`, `BR-10`, `BR-11`, `BR-12`
+Objetivo: modificar nivel, PS o movimientos equipados de una instancia jugable.
+
+Endpoint:
+
+```txt
+PUT /api/v1/my-pokemons/{id}
+```
+
+Reglas aplicables:
+
+- `BR-08`
+- `BR-09`
+- `BR-10`
+- `BR-11`
+- `BR-12`
+
+Riesgo mitigado:
+
+- la actualización afecta solo a la instancia jugable, no a la especie base.
 
 ### UC-15 Eliminar Mi Pokémon
 
-- Objetivo: retirar una instancia jugable.
-- Actor principal: usuario de la API.
-- Precondiciones:
-  - el Mi Pokémon existe
-  - no participa en una partida activa
-- Flujo principal:
-  1. el actor solicita borrado
-  2. el sistema valida si está en uso
-  3. el sistema elimina o bloquea
+Objetivo: retirar una instancia jugable cuando no compromete partidas ni histórico persistido.
+
+Endpoint:
+
+```txt
+DELETE /api/v1/my-pokemons/{id}
+```
+
+La estrategia actual es borrado físico protegido por comprobación de dependencias.
+
+Se rechaza si el `Mi Pokémon` participa en una partida activa o si cualquier referencia persistida, incluida una referencia de combate, impide eliminarlo con integridad.
 
 ### UC-16 Consultar movimientos equipados de Mi Pokémon
 
-- Objetivo: obtener los movimientos actuales de una instancia jugable.
-- Actor principal: consumidor de API.
-- Precondiciones:
-  - el Mi Pokémon existe
-- Flujo principal:
-  1. el actor solicita los movimientos del Mi Pokémon
-  2. el sistema devuelve los movimientos equipados
+Objetivo: obtener los movimientos actualmente equipados por una instancia jugable.
 
-## 8.5 Cálculo de daño
+Endpoint:
+
+```txt
+GET /api/v1/my-pokemons/{id}/equipped-moves
+```
+
+La respuesta devuelve los movimientos equipados de la instancia, no los movimientos aprendibles de la especie.
 
 ### UC-17 Calcular daño de un movimiento
 
-- Objetivo: devolver el daño que causaría un movimiento elegido desde un atacante a un rival.
-- Actor principal: consumidor de API o motor de combate.
-- Precondiciones:
-  - existen atacante y rival
-  - el atacante tiene equipado el movimiento o el sistema permite calcular en modo simulación
-  - ambos tienen PS mayores que 0
-- Flujo principal:
-  1. el actor informa atacante, rival y movimiento
-  2. el sistema identifica nivel, estadística ofensiva, estadística defensiva, poder, tipo del movimiento y tipo o tipos del defensor
-  3. el sistema consulta la matriz normativa de efectividad
-  4. si el defensor tiene dos tipos, el sistema multiplica ambos coeficientes
-  5. el sistema genera el factor random `85..100`
-  6. el sistema aplica la fórmula del PDF
-  7. el sistema devuelve el daño y el detalle del cálculo, incluidos coeficientes base y efectividad total
-- Reglas aplicables: `BR-13`, `BR-14`, `BR-15`, `BR-16`, `BR-17`, `BR-18`
-- Resultado esperado:
-  - no altera estado si se usa en modo simulación
-  - puede ser reutilizado por el motor de combate real
+Objetivo: calcular el daño que un movimiento causaría desde un atacante hacia un defensor.
 
-## 8.6 Partida y combate
+Endpoint:
+
+```txt
+POST /api/v1/damage-calculations
+```
+
+Entrada:
+
+- `attackerMyPokemonId`
+- `defenderMyPokemonId`
+- `moveId`
+
+Reglas aplicables:
+
+- `BR-13`
+- `BR-14`
+- `BR-15`
+- `BR-16`
+- `BR-17`
+- `BR-18`
+- `BR-25`
+
+Validaciones:
+
+- atacante existente
+- defensor existente
+- movimiento existente
+- atacante con PS mayores que `0`
+- defensor con PS mayores que `0`
+- movimiento equipado por el atacante
+- movimiento no `Status`
+
+Salida trazable:
+
+- atacante
+- defensor
+- movimiento
+- tipo y categoría del movimiento
+- nivel del atacante
+- poder del movimiento
+- estadística ofensiva usada
+- estadística defensiva usada
+- PS actuales del defensor
+- factor aleatorio
+- daño base
+- desglose de efectividad por tipo defensor
+- efectividad total
+- daño bruto
+- daño aplicado
+- PS restantes del defensor
 
 ### UC-18 Crear partida de combate
 
-- Objetivo: crear una nueva partida entre 2 Pokémon adversarios.
-- Actor principal: consumidor de API.
-- Precondiciones:
-  - existen 2 Mis Pokémon válidos
-  - ambos tienen PS mayores que 0
-- Flujo principal:
-  1. el actor selecciona Pokémon A y Pokémon B
-  2. el sistema crea la partida con estado inicial
-  3. el sistema fija el primer estado del combate
-- Reglas aplicables: `BR-19`, `BR-20`
+Objetivo: crear una nueva partida entre exactamente dos `Mis Pokémon`.
+
+Endpoint:
+
+```txt
+POST /api/v1/battles
+```
+
+Entrada:
+
+- `firstMyPokemonId`
+- `secondMyPokemonId`
+
+Reglas aplicables:
+
+- `BR-19`
+- `BR-20`
+
+Estado inicial:
+
+- `Status = Created`
+- `CurrentTurnNumber = 1`
+- `NextAttackerMyPokemonId = firstMyPokemonId`
+- dos combatientes con snapshot de PS iniciales
+- histórico vacío
 
 ### UC-19 Consultar estado de la partida
 
-- Objetivo: recuperar el estado actual de un combate.
-- Actor principal: consumidor de API.
-- Precondiciones:
-  - la partida existe
-- Flujo principal:
-  1. el actor consulta la partida
-  2. el sistema devuelve:
-     - combatientes
-     - PS actuales
-     - fase o turno
-     - estado `Created`, `InProgress`, `Finished`
-     - histórico de acciones si existe
+Objetivo: recuperar el estado actual de un combate.
+
+Endpoint:
+
+```txt
+GET /api/v1/battles/{id}
+```
+
+La respuesta incluye:
+
+- identificador estable
+- estado
+- turno actual
+- siguiente atacante, si aplica
+- ganador, si aplica
+- perdedor, si aplica
+- combatientes
+- histórico registrado
 
 ### UC-20 Ejecutar una fase de combate
 
-- Objetivo: avanzar la partida una fase aplicando un movimiento.
-- Actor principal: consumidor de API o cliente de juego.
-- Precondiciones:
-  - la partida existe
-  - la partida no está finalizada
-  - el atacante seleccionado pertenece a la partida
-  - el movimiento pertenece al set equipado del atacante
-- Flujo principal:
-  1. el actor indica qué Pokémon ataca y con qué movimiento
-  2. el sistema valida la acción
-  3. el sistema invoca el cálculo de daño
-  4. el sistema descuenta PS al defensor
-  5. el sistema registra la fase con todos los datos del cálculo, incluidos los coeficientes de efectividad usados
-  6. el sistema comprueba si el defensor ha llegado a 0 PS
-  7. si no termina la partida, el sistema deja lista la siguiente fase
-- Reglas aplicables: `BR-17`, `BR-21`, `BR-22`, `BR-23`
+Objetivo: avanzar una partida una fase aplicando un movimiento.
+
+Endpoint:
+
+```txt
+POST /api/v1/battles/{id}/phases
+```
+
+Entrada:
+
+- `attackerMyPokemonId`
+- `moveId`
+
+Reglas aplicables:
+
+- `BR-17`
+- `BR-21`
+- `BR-22`
+- `BR-23`
+- `BR-24`
+- `BR-25`
+
+Validaciones:
+
+- la partida existe
+- la partida no está finalizada
+- el atacante pertenece a la partida
+- el atacante coincide con `NextAttackerMyPokemonId`
+- el atacante tiene PS mayores que `0`
+- el defensor tiene PS mayores que `0`
+- el movimiento está equipado por el atacante
+
+Efectos:
+
+- invoca el servicio reutilizable de cálculo de daño
+- registra una fase con el número `CurrentTurnNumber`
+- actualiza PS del combatiente defensor dentro de la partida
+- sincroniza los PS actuales de las instancias `Mi Pokémon`
+- alterna el siguiente atacante si el combate continúa
+- finaliza la partida si el defensor queda a `0` PS
 
 ### UC-21 Finalizar partida por KO
 
-- Objetivo: cerrar la partida cuando uno de los Pokémon queda a 0 PS.
-- Actor principal: sistema.
-- Disparador:
-  - ocurre al final de una fase de combate
-- Flujo principal:
-  1. el sistema detecta que uno de los Pokémon ha quedado con `0` PS
-  2. marca la partida como `Finished`
-  3. informa ganador y perdedor
-  4. impide nuevas fases
+Objetivo: cerrar automáticamente la partida cuando un combatiente queda a `0` PS.
+
+Este caso de uso se ejecuta dentro del flujo de `UC-20`.
+
+Efectos:
+
+- `Status = Finished`
+- `NextAttackerMyPokemonId = null`
+- `WinnerMyPokemonId = atacante`
+- `LoserMyPokemonId = defensor`
+- se impiden nuevas fases
 
 ### UC-22 Consultar histórico de fases de combate
 
-- Objetivo: reconstruir lo ocurrido en la partida.
-- Actor principal: consumidor de API, QA o cliente visual.
-- Precondiciones:
-  - la partida existe
-- Flujo principal:
-  1. el actor solicita el histórico
-  2. el sistema devuelve una secuencia ordenada de fases
-  3. cada fase incluye atacante, movimiento, random, efectividad base, efectividad total, daño y PS resultantes
+Objetivo: reconstruir lo ocurrido en una partida.
 
-## 9. Escenarios funcionales mínimos que el MVP debe soportar
+Endpoint:
 
-## 9.1 Escenario de catálogo
+```txt
+GET /api/v1/battles/{id}/phases
+```
 
-1. crear los 10 Pokémon base del MVP
-2. crear el subconjunto curado de movimientos
-3. asociar movimientos aprendibles a cada especie
-4. consultar qué Pokémon comparten `Protect`
-5. consultar movimientos posibles de `Blastoise`
+La respuesta devuelve fases ordenadas por `SequenceNumber`.
 
-## 9.2 Escenario de Mis Pokémon
+Cada fase incluye:
 
-1. crear un `Mi Pokémon` basado en `Charizard`
-2. equiparle exactamente 4 movimientos válidos
-3. consultar sus movimientos equipados
-4. intentar equipar un quinto movimiento y recibir rechazo funcional
+- atacante
+- defensor
+- movimiento
+- nombre del movimiento
+- random
+- efectividad por tipo defensor
+- efectividad total
+- daño
+- PS restantes del atacante
+- PS restantes del defensor
 
-## 9.3 Escenario de cálculo de daño
+## 10. Escenarios funcionales mínimos
 
-1. seleccionar `Pikachu` atacante
-2. seleccionar `Thunderbolt`
-3. seleccionar `Blastoise` rival
-4. verificar en la tabla de la sección `6.1` que `Eléctrico -> Agua = 2`
-5. calcular daño con ventaja de tipo
-6. repetir con random diferente y observar variación del 15%
+### 10.1 Escenario de catálogo
 
-## 9.4 Escenario de resistencia e inmunidad basado en la tabla
+1. Crear o sembrar los 10 Pokémon base del MVP.
+2. Crear o sembrar los 27 movimientos del MVP.
+3. Asociar movimientos aprendibles a cada especie.
+4. Consultar qué Pokémon pueden aprender `Protect`.
+5. Consultar movimientos posibles de `Blastoise`.
 
-1. seleccionar un atacante de tipo `Planta`
-2. calcular contra `Charizard` y verificar una resistencia global de `0.25`, resultado de `Planta -> Fuego = 0.5` y `Planta -> Volador = 0.5`
-3. seleccionar un atacante eléctrico
-4. calcular contra `Golem` y verificar en la tabla de la sección `6.1` que `Eléctrico -> Tierra = 0`
-5. obtener daño `0`, aunque el segundo tipo del defensor no sea inmune
+### 10.2 Escenario de Mis Pokémon
 
-## 9.5 Escenario de combate completo
+1. Crear un `Mi Pokémon` basado en `Charizard`.
+2. Equiparle exactamente 4 movimientos válidos.
+3. Consultar sus movimientos equipados con `GET /api/v1/my-pokemons/{id}/equipped-moves`.
+4. Intentar equipar un quinto movimiento y recibir `400 Bad Request`.
+5. Intentar equipar un movimiento no aprendible y recibir `400 Bad Request`.
 
-1. crear una partida entre `Machamp` y `Snorlax`
-2. ejecutar fases consecutivas
-3. recalcular y persistir PS tras cada movimiento
-4. finalizar cuando uno llegue a `0` PS
-5. consultar el histórico completo
+### 10.3 Escenario de cálculo de daño con ventaja simple
 
-## 10. Requisitos funcionales derivados que conviene reflejar en la API
+1. Crear o usar `Pikachu` como atacante.
+2. Equipar `Thunderbolt`.
+3. Crear o usar `Blastoise` como defensor.
+4. Calcular daño.
+5. Verificar que `Electric -> Water = 2`.
+6. Verificar que la respuesta incluye trazabilidad de random, estadísticas usadas y efectividad.
 
-Aunque el PDF no entra en detalle HTTP, para que la API sea usable el MVP necesita además:
+### 10.4 Escenario de resistencia doble e inmunidad
 
-- identificadores estables para Pokémon base, movimientos, Mis Pokémon y partidas
-- respuestas de error de validación explícitas
-- imposibilidad de equipar movimientos no aprendibles
-- imposibilidad de ejecutar acciones de combate sobre partidas finalizadas
-- resolución de efectividad basada en la tabla normativa del PDF
-- trazabilidad del cálculo de daño
+1. Calcular un movimiento `Grass` contra `Charizard`.
+2. Verificar efectividad total `0.25`, resultado de `Grass -> Fire = 0.5` y `Grass -> Flying = 0.5`.
+3. Calcular un movimiento `Electric` contra `Golem`.
+4. Verificar que `Electric -> Ground = 0`.
+5. Verificar daño `0` aunque el otro tipo del defensor no sea inmune.
 
-## 11. Riesgos funcionales y puntos a confirmar
+### 10.5 Escenario de combate completo
 
-### Riesgo 1: el modelo actual solo admita un tipo
+1. Crear una partida entre `Machamp` y `Snorlax`.
+2. Verificar `Status = Created`, turno `1` y primer atacante.
+3. Ejecutar fases consecutivas con el atacante esperado.
+4. Recalcular y persistir PS tras cada movimiento.
+5. Finalizar cuando uno llegue a `0` PS.
+6. Consultar estado final con ganador y perdedor.
+7. Consultar histórico completo ordenado por secuencia.
 
-Impacto:
+## 11. Requisitos funcionales derivados reflejados en la API
 
-- se pierde fidelidad respecto a la fuente de catálogo
-- algunas efectividades e inmunidades del roster propuesto no se comportarán como se espera
+- Identificadores estables para especies, movimientos, instancias jugables y partidas.
+- Errores explícitos de validación.
+- Rechazo de movimientos no aprendibles al crear o actualizar `Mi Pokémon`.
+- Rechazo de movimientos no equipados al calcular daño o ejecutar una fase.
+- Rechazo de acciones sobre partidas finalizadas.
+- Resolución de efectividad basada en una tabla normativa materializada en código.
+- Soporte real de defensores con uno o dos tipos.
+- Trazabilidad del cálculo de daño.
+- Histórico persistente de fases de combate.
+- Protección de borrados cuando existen dependencias activas.
 
-### Riesgo 2: no modelar categoría del movimiento
+## 12. Riesgos funcionales mitigados
 
-Impacto:
+### Riesgo 1: modelo de un solo tipo
 
-- las estadísticas especiales del Pokémon quedarían sin uso real
-- el cálculo de daño sería inconsistente con el modelo de datos del PDF
+Estado: mitigado.
 
-### Riesgo 3: confundir especie con instancia
+El dominio soporta `1..2` tipos por especie y el cálculo multiplica la efectividad contra cada tipo defensor.
 
-Impacto:
+### Riesgo 2: ignorar la categoría del movimiento
 
-- se mezclaría catálogo base con estado mutable
-- sería difícil mantener combates y CRUD con integridad
+Estado: mitigado.
 
-### Riesgo 4: querer importar todo el catálogo desde el primer día
+El cálculo usa `Attack/Defense` para `Physical` y `SpecialAttack/SpecialDefense` para `Special`.
 
-Impacto:
+### Riesgo 3: confundir especie con instancia jugable
 
-- aumenta mucho el esfuerzo de seed y QA
-- no aporta valor al MVP
+Estado: mitigado.
 
-Decisión recomendada:
+El catálogo base se modela como `PokemonSpecies`; el estado mutable de juego se modela como `MyPokemon`; el combate usa `MyPokemon`, no especies base.
 
-- catálogo base de 10 Pokémon
-- subconjunto curado de movimientos
-- arquitectura preparada para crecer después
+### Riesgo 4: importar demasiado catálogo en el MVP
 
-### Riesgo 5: no materializar la tabla de efectividad como contrato explícito
+Estado: mitigado.
 
-Impacto:
+El seed actual usa un conjunto curado de 10 especies y 27 movimientos.
 
-- backend, QA y documentación podrían tomar decisiones distintas para una misma combinación de tipos
-- las regresiones de daño serían difíciles de detectar al ampliar catálogo o añadir más escenarios
+### Riesgo 5: no materializar la tabla de efectividad
 
-## 12. Priorización recomendada de implementación
+Estado: mitigado.
 
-### Fase A
+La tabla está implementada como contrato explícito en `PokemonTypeEffectivenessChart` y cubierta por pruebas de dominio.
 
-- CRUD de Pokémon base
-- CRUD de movimientos
-- asociación de movimientos aprendibles por especie
+### Riesgo 6: perder trazabilidad de combate
 
-### Fase B
+Estado: mitigado.
 
-- CRUD de Mis Pokémon
-- consulta de movimientos equipados
-- consulta de movimientos posibles
-- consulta de Pokémon que comparten movimiento
+Cada fase persiste random, efectividad por tipo, efectividad total, daño y PS resultantes.
 
-### Fase C
+## 13. Trazabilidad requisito -> implementación
 
-- servicio de cálculo de daño
-- implementación de la matriz de efectividad y la resolución multi-tipo
-- creación de partidas
-- ejecución de fases
-- consulta de estado e histórico
-
-## 13. Trazabilidad resumida requisito -> casos de uso
-
-- `Parte 1 PDF` -> `UC-17` + matriz normativa de la sección `6.1`
-- `Parte 2 PDF` -> `UC-01` a `UC-16`
-- `Parte 3 PDF` -> `UC-18` a `UC-22`
+| Requisito | Casos de uso | Implementación principal |
+| --- | --- | --- |
+| Cálculo de daño del PDF | `UC-17` | `MoveDamageCalculationService`, `MoveDamageCalculator` |
+| Tabla de efectividad | `UC-17`, `UC-20`, `UC-22` | `PokemonTypeEffectivenessChart` |
+| CRUD Pokémon base | `UC-01` a `UC-04` | `PokemonEndpoints`, handlers de `Features/Pokemons` |
+| CRUD movimientos | `UC-05` a `UC-08` | `MoveEndpoints`, handlers de `Features/Moves` |
+| Movimientos posibles | `UC-09`, `UC-10`, `UC-11` | relación `PokemonLearnableMove` |
+| Mis Pokémon | `UC-12` a `UC-16` | `MyPokemonEndpoints`, `MyPokemon` |
+| Partida de combate | `UC-18` a `UC-22` | `BattleEndpoints`, `Battle`, `BattlePhase` |
 
 ## 14. Fuentes funcionales de referencia
 
 - PDF de requisitos: `docs/requirements/POKÉMON 2.pdf`
 - Catálogo general de Pokémon: `https://pokemondb.net/pokedex/all`
 - Catálogo general de movimientos: `https://pokemondb.net/move/all`
-- Páginas individuales verificadas durante el análisis:
-  - `https://pokemondb.net/pokedex/charizard`
-  - `https://pokemondb.net/pokedex/blastoise`
-  - `https://pokemondb.net/pokedex/venusaur`
-  - `https://pokemondb.net/pokedex/pikachu`
-  - `https://pokemondb.net/pokedex/gengar`
-  - `https://pokemondb.net/pokedex/golem`
-  - `https://pokemondb.net/pokedex/alakazam`
-  - `https://pokemondb.net/pokedex/machamp`
-  - `https://pokemondb.net/pokedex/dragonite`
-  - `https://pokemondb.net/pokedex/snorlax`
+- Implementación de endpoints: `src/Api/Visiotech.Pokemon.Api/Endpoints`
+- Implementación de dominio: `src/Api/Visiotech.Pokemon.Domain`
+- Implementación de casos de aplicación: `src/Api/Visiotech.Pokemon.Application`
