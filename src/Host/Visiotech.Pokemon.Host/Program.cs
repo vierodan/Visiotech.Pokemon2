@@ -19,6 +19,7 @@ Log.Logger = new LoggerConfiguration()
 try
 {
     var builder = WebApplication.CreateBuilder(args);
+    var allowedCorsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 
     builder.Host.UseSerilog((context, services, loggerConfiguration) =>
     {
@@ -41,6 +42,21 @@ try
     builder.Services.AddOpenApi("v1");
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
+    builder.Services.AddCors(options =>
+    {
+        if (allowedCorsOrigins.Length == 0)
+        {
+            return;
+        }
+
+        options.AddDefaultPolicy(policy =>
+        {
+            policy
+                .WithOrigins(allowedCorsOrigins)
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        });
+    });
 
     var app = builder.Build();
 
@@ -82,6 +98,11 @@ try
 
     app.UseExceptionHandler();
     app.UseHttpsRedirection();
+
+    if (allowedCorsOrigins.Length > 0)
+    {
+        app.UseCors();
+    }
 
     if (app.Environment.IsDevelopment())
     {
