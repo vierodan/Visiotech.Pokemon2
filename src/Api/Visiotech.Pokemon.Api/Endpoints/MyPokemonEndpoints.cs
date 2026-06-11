@@ -7,6 +7,7 @@ using Visiotech.Pokemon.Application.Abstractions.Messaging;
 using Visiotech.Pokemon.Application.Common.Models;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Commands.CreateMyPokemon;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Commands.DeleteMyPokemon;
+using Visiotech.Pokemon.Application.Features.MyPokemons.Queries.GetMyPokemonEquippedMoves;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Commands.UpdateMyPokemon;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Queries.GetMyPokemonDetail;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Queries.GetMyPokemonsCatalog;
@@ -49,6 +50,12 @@ public static class MyPokemonEndpoints
             .WithName("GetMyPokemonDetail")
             .WithSummary("Returns the detail of a playable pokemon instance.")
             .Produces<MyPokemonContract>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        endpoints.MapGet("/api/v1/my-pokemons/{id:guid}/equipped-moves", GetMyPokemonEquippedMovesAsync)
+            .WithName("GetMyPokemonEquippedMoves")
+            .WithSummary("Returns the moves currently equipped by a playable pokemon instance.")
+            .Produces<MyPokemonEquippedMovesContract>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         return endpoints;
@@ -117,6 +124,15 @@ public static class MyPokemonEndpoints
         CancellationToken cancellationToken)
     {
         var response = await handler.Handle(new GetMyPokemonDetailQuery(id), cancellationToken);
+        return TypedResults.Ok(response.ToContract());
+    }
+
+    private static async Task<Ok<MyPokemonEquippedMovesContract>> GetMyPokemonEquippedMovesAsync(
+        Guid id,
+        IQueryHandler<GetMyPokemonEquippedMovesQuery, MyPokemonEquippedMovesResponse> handler,
+        CancellationToken cancellationToken)
+    {
+        var response = await handler.Handle(new GetMyPokemonEquippedMovesQuery(id), cancellationToken);
         return TypedResults.Ok(response.ToContract());
     }
 }

@@ -1,6 +1,7 @@
 using Visiotech.Pokemon.Application.Common.Models;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Commands.CreateMyPokemon;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Commands.DeleteMyPokemon;
+using Visiotech.Pokemon.Application.Features.MyPokemons.Queries.GetMyPokemonEquippedMoves;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Queries.GetMyPokemonDetail;
 using Visiotech.Pokemon.Application.Features.MyPokemons.Queries.GetMyPokemonsCatalog;
 using Visiotech.Pokemon.Application.Features.Moves.Commands.CreatePokemonMove;
@@ -92,6 +93,10 @@ internal static class RequestLogContextFactory
                 query.PageSize
             },
             GetMyPokemonDetailQuery query => new
+            {
+                query.Id
+            },
+            GetMyPokemonEquippedMovesQuery query => new
             {
                 query.Id
             },
@@ -200,6 +205,11 @@ internal static class RequestLogContextFactory
                 catalog.PageSize,
                 catalog.TotalCount,
                 ItemCount = catalog.Items.Count
+            },
+            MyPokemonEquippedMovesResponse equippedMoves => new
+            {
+                equippedMoves.MyPokemonId,
+                MoveCount = equippedMoves.Moves.Count
             },
             PokemonSpeciesCatalogResponse catalog => new
             {

@@ -805,6 +805,81 @@ public sealed class SystemEndpointsTests : IClassFixture<CustomWebApplicationFac
     }
 
     [PostgresFact]
+    public async Task GetMyPokemonEquippedMoves_Should_Return_Only_Equipped_Moves_For_Existing_Instance()
+    {
+        var charizard = await CreateSpeciesAsync("Charizard", ["Fire", "Flying"], 78, 84, 78, 109, 85, 100);
+        var flamethrower = await CreateMoveAsync("Flamethrower", "Fire", "Special", 90);
+        var fly = await CreateMoveAsync("Fly", "Flying", "Physical", 90);
+        var airSlash = await CreateMoveAsync("Air Slash", "Flying", "Special", 75);
+
+        await AssociateLearnableMovesAsync(charizard.Id, flamethrower.Id, fly.Id, airSlash.Id);
+        var myPokemon = await CreateMyPokemonAsync(charizard.Id, 50, 120, 150, flamethrower.Id, fly.Id);
+
+        var response = await _client.GetAsync($"/api/v1/my-pokemons/{myPokemon.Id}/equipped-moves");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<MyPokemonEquippedMovesContract>();
+        Assert.NotNull(payload);
+        Assert.Equal(myPokemon.Id, payload.MyPokemonId);
+        Assert.Equal(2, payload.Moves.Count);
+        Assert.Collection(
+            payload.Moves,
+            move => Assert.Equal("Flamethrower", move.Name),
+            move => Assert.Equal("Fly", move.Name));
+        Assert.DoesNotContain(payload.Moves, move => move.Name == "Air Slash");
+    }
+
+    [PostgresFact]
+    public async Task GetMyPokemonEquippedMoves_Should_Return_NotFound_When_Instance_Does_Not_Exist()
+    {
+        var response = await _client.GetAsync($"/api/v1/my-pokemons/{Guid.NewGuid()}/equipped-moves");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        await using var responseStream = await response.Content.ReadAsStreamAsync();
+        using var payload = await JsonDocument.ParseAsync(responseStream);
+        Assert.Equal("Not found", payload.RootElement.GetProperty("title").GetString());
+        Assert.Equal("id", payload.RootElement.GetProperty("target").GetString());
+    }
+
+    [PostgresFact]
+    public async Task GetMyPokemonEquippedMoves_Should_Return_Maximum_Four_Moves_In_Slot_Order()
+    {
+        var dragonite = await CreateSpeciesAsync("Dragonite", ["Dragon", "Flying"], 91, 134, 95, 100, 100, 80);
+        var hyperBeam = await CreateMoveAsync("Hyper Beam", "Normal", "Special", 150);
+        var earthquake = await CreateMoveAsync("Earthquake", "Ground", "Physical", 100);
+        var airSlash = await CreateMoveAsync("Air Slash", "Flying", "Special", 75);
+        var thunderPunch = await CreateMoveAsync("Thunder Punch", "Electric", "Physical", 75);
+
+        await AssociateLearnableMovesAsync(dragonite.Id, hyperBeam.Id, earthquake.Id, airSlash.Id, thunderPunch.Id);
+        var myPokemon = await CreateMyPokemonAsync(
+            dragonite.Id,
+            55,
+            140,
+            160,
+            hyperBeam.Id,
+            earthquake.Id,
+            airSlash.Id,
+            thunderPunch.Id);
+
+        var response = await _client.GetAsync($"/api/v1/my-pokemons/{myPokemon.Id}/equipped-moves");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<MyPokemonEquippedMovesContract>();
+        Assert.NotNull(payload);
+        Assert.Equal(myPokemon.Id, payload.MyPokemonId);
+        Assert.Equal(4, payload.Moves.Count);
+        Assert.Collection(
+            payload.Moves,
+            move => Assert.Equal("Hyper Beam", move.Name),
+            move => Assert.Equal("Earthquake", move.Name),
+            move => Assert.Equal("Air Slash", move.Name),
+            move => Assert.Equal("Thunder Punch", move.Name));
+    }
+
+    [PostgresFact]
     public async Task UpdateMyPokemon_Should_Reequip_Moves_And_Update_Battle_State_When_Request_Is_Valid()
     {
         var charizard = await CreateSpeciesAsync("Charizard", ["Fire", "Flying"], 78, 84, 78, 109, 85, 100);

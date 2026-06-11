@@ -39,6 +39,11 @@ public static class ApiMappings
             response.TotalCount,
             response.TotalPages);
 
+    public static MyPokemonEquippedMovesContract ToContract(this MyPokemonEquippedMovesResponse response) =>
+        new(
+            response.MyPokemonId,
+            response.Moves.Select(item => item.ToContract()).ToArray());
+
     public static PokemonMoveContract ToContract(this PokemonMoveResponse response) =>
         new(
             response.Id,
